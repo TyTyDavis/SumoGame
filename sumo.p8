@@ -204,6 +204,20 @@ function point_on_circle(center_x, center_y, radius, angle)
   local y = center_y + radius * sin(angle)
   return x, y
 end
+
+function in_circle(x, y, circle_x, circle_y, radius)
+	circle_x=circle_x or circx
+	circle_y=circle_y or circy
+	radius=radius or circr
+	distance = sqrt((x - circle_x)^2 + (y - circle_y)^2)
+ return distance <= radius
+end
+
+function in_oval(cx,cy,rx,ry,x,y)
+ local dx = (x - cx) / rx
+ local dy = (y - cy) / ry
+ return dx * dx + dy * dy <= 1
+end
 -->8
 --bg/ui
 function draw_bg()
@@ -213,6 +227,8 @@ function draw_bg()
 	line(77,90,77,97)
 end
 
+
+
 function draw_debug()
 	bcx=p1.x
 	bcy=p1.y
@@ -221,10 +237,10 @@ function draw_debug()
 	
 	local iax, iay = point_on_circle(p1.x, p1.y, 10, .12 - p1.br)
 	local oax, oay = point_on_circle(p1.x, p1.y, 7,.39 - p1.br)
-	pset(iax,iay,14)
-	pset(oax,oay,14)
+	--pset(iax,iay,14)
+	--pset(oax,oay,14)
 	--circ(oax,oay,19,10)
-	pset(oax,oay,10)
+	--pset(oax,oay,10)
 	--outer arm collide point
 	local ohx, ohy = point_on_circle(oax, oay, 24,.78-p1.oar)
 	local ihx, ihy = point_on_circle(iax, iay, 17,.82-p1.iar)
@@ -236,21 +252,35 @@ function draw_debug()
 	
 	local iax2, iay2 = point_on_circle(p2.x-37, p2.y, 10, .12 - p2.br)
 	local oax2, oay2 = point_on_circle(p2.x-10, p2.y, 7,.39 - p2.br)
-	pset(iax2,iay2,14)
-	pset(oax2,oay2,14)
+	--pset(iax2,iay2,14)
+	--pset(oax2,oay2,14)
 	--circ(oax2,oay2,24,10)
-	pset(oax2,oay2,10)
+	--pset(oax2,oay2,10)
 	local ohx2, ohy2 = point_on_circle(oax2, oay2, 24,.72+p2.oar)
 	local ihx2, ihy2 = point_on_circle(iax2, iay2, 17,.68+p2.iar)
 	--pset(ohx2,ohy2,0)
 	--circ(iax2,iay2,17,10)
 	--pset(ihx2,ihy2,0)
-	pset(p1.iarmhitxy[1],p1.iarmhitxy[2],0)
-	pset(p1.oarmhitxy[1],p1.oarmhitxy[2],0)
+	p1icolor=0
+	p1ocolor=0
+	if in_oval(p2.x-24,p2.y,10,30,p1.iarmhitxy[1],p1.iarmhitxy[2]) then
+		p1icolor=10
+	end
+	if in_oval(p2.x-24,p2.y,10,30,p1.oarmhitxy[1],p1.oarmhitxy[2]) then
+		p1ocolor=10
+	end
+	pset(p1.iarmhitxy[1],p1.iarmhitxy[2],p1icolor)
+	pset(p1.oarmhitxy[1],p1.oarmhitxy[2],p1ocolor)
 	pset(p2.iarmhitxy[1],p2.iarmhitxy[2],0)
 	pset(p2.oarmhitxy[1],p2.oarmhitxy[2],0)
 
+	--body colliders
+	oval(p1.x-10,p1.y-15,p1.x+11,p1.y+16,9)
+	oval(p2.x-34,p2.y-15,p2.x-13,p2.y+16,9)
+	pset(p1.x, p2.y,9)
+	pset(p2.x-24,p2.y,9)
 end
+
 __gfx__
 00000000b666bbbbbbbbbbbbbbbbbbbbb666666bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb777bbbbbb7777bbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
 0000000066666bbbbbbbbbbbbbbbbbbb666666666bbbbbbbbbbbbbbbbbbb00bbbbbbbbbbbbbbbb777777bbbb77777bbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
