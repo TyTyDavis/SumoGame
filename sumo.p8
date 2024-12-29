@@ -25,7 +25,9 @@ function _draw()
 	draw_bg()
 	p1:draw()
 	p2:draw()
-	draw_debug()
+	draw_stam()
+	draw_balance()
+	--draw_debug()
 end
 -->8
 --rikishi
@@ -47,6 +49,8 @@ p1={
 	bodymapy=0,
 	iarmhitxy={0,0},
 	oarmhitxy={0,0},
+	stam=100,
+	bal=50,
 	draw=function(self)
 			if self.move>10 then
 				ol=2
@@ -145,6 +149,22 @@ p1={
 		end
 			
 		self.x+=self.dx/3
+		if self.dx!=0 then self.stam-=0.1 end
+		if btn(⬆️) or btn(⬇️) then self.stam-=0.1 end
+		if btn(❎) or btn(🅾️) then self.stam-=0.1 end
+		if not btn(❎) and not btn(🅾️) then self.stam+=0.05 end
+		if not btn(⬇️) and not btn(⬆️) then self.stam+=0.05 end
+		if self.stam>100 then self.stam=100 end
+		
+		if self.dx!=0 then
+			self.bal+=self.dx/10
+		else
+			if self.bal>50 then
+				self.bal=max(self.bal-0.2, 50)
+			elseif self.bal<50 then
+				self.bal=min(self.bal+0.2, 50)
+			end
+		end
 	end,
 }
 
@@ -279,6 +299,24 @@ function draw_debug()
 	oval(p2.x-34,p2.y-15,p2.x-13,p2.y+16,9)
 	pset(p1.x, p2.y,9)
 	pset(p2.x-24,p2.y,9)
+end
+
+
+function draw_stam()
+	rectfill(6,6,6+(43*(p1.stam/100)),9,3)
+	rect(5,5,50,10,6)
+	rectfill(77+((100-p2.stam)/100),6,121,9,3)
+	rect(77,5,122,10,6)
+	
+end
+
+function draw_balance()
+	circfill(6+(43*(p1.bal/100)), 18,3,3)
+	rect(5,15,50,21,6)
+	line(27,15,27,21,6)
+	circfill(79+(43*(p2.bal/100)), 18,3,3)
+	rect(77,15,122,21,6)
+	line(100,15,100,21,6)
 end
 
 __gfx__
