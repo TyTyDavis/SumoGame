@@ -30,7 +30,8 @@ function _draw()
 	draw_wrestlers()
 	draw_stam()
 	draw_balance()
-	draw_debug()
+	--draw_debug()
+	--print(p1.iar, 50,50,7)
 end
 -->8
 --rikishi
@@ -56,6 +57,12 @@ p1={
 	stam=100,
 	bal=50,
 	bodycollide=false,
+	ibuff=false,
+	obuff=false,
+	ocount=0,
+	icount=0,
+	islap="ready",
+	oslap="ready",
 	draw=function(self)
 			if self.move>10 then
 				ol=2
@@ -144,21 +151,76 @@ p1={
 		
 		--outer arm
 		if btn(❎,self.p) then
-			if self.oar>-0.18 then
-				self.oar-=0.004
+			self.ocount+=1
+			if self.oar>-0.18 and self.oslap=="ready" then
+				self.oar-=0.01
 			end
 		else
-			if self.oar<0 then self.oar+=0.01 end
+			if self.ocount<10 and self.ocount!=0 then
+				if self.oslap=="ready" then
+					self.oslap="slap"
+				end
+			end	
+		
+		if self.oslap=="slap" then
+			if self.oar>-0.18 then
+				self.oar-=0.05
+				self.stam-=0.5
+				if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
+					other(self.p).stam-=10
+					self.ocount=0
+					self.oslap="not ready"
+				end
+			else
+				self.oslap="not ready"
+				self.ocount=0
+			end
+		else
+			if self.oar>0 then 
+				self.ocount=0
+				self.oslap="ready"
+			end
+		end
+		end
+		if (not btn(❎,self.p) or self.oslap=="not ready") and self.oar<0 then
+			self.oar+=0.02
 		end
 		if btn(🅾️,self.p) then
-			if self.iar>-0.18 then
-				self.iar-=0.004
+			self.icount+=1
+			if self.iar>-0.18 and self.islap=="ready" then
+				self.iar-=0.01
 			end
-		else		
-			if self.iar<0 then self.iar+=0.01 end
+		else
+			if self.icount<10 and self.icount!=0 then
+				if self.islap=="ready" then
+					self.islap="slap"
+				end
+			end	
+		
+		if self.islap=="slap" then
+			if self.iar>-0.18 then
+				self.iar-=0.05
+				self.stam-=0.5
+				if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
+					other(self.p).stam-=10
+					self.icount=0
+					self.islap="not ready"
+				end
+			else
+				self.islap="not ready"
+				self.icount=0
+			end
+		else
+			if self.iar>0 then 
+				self.icount=0
+				self.islap="ready"
+			end
 		end
-		
-		
+	end
+	if (not btn(🅾️,self.p) or self.islap=="not ready") and self.iar<0 then
+		self.iar+=0.02
+	end
+			
 		if not self.bodycollide then
 			self.x+=self.dx/3
 		else
@@ -207,6 +269,17 @@ function other(p)
 		return p1
 	end
 end
+
+function arm_hit(p, x, y)
+	otherp=other(p)
+	if p==0 then
+		return in_oval(otherp.x-24,otherp.y,10,30,x,y)
+	else
+		return in_oval(otherp.x,otherp.y,10,30,x,y)
+	end
+end
+
+
 p2 = deepcopy(p1)
 
 p2.x=100
