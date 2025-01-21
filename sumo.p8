@@ -13,7 +13,7 @@ function _init()
 	palt(11,true)
 	--pal(12,14,1)
 	--pal(13,8,1)
-	state="menu"
+	state="play"
 	winner=" "
 end
 
@@ -77,6 +77,7 @@ p1={
 	dx=0,
 	mx=0,
 	f=false,
+	r=0,
 	br=0,
 	oar=0,
 	iar=0,
@@ -544,7 +545,8 @@ function draw_wrestlers()
 --p1 inner
 	pal(8,13,0)
 	--leg
-	pd_rotate(p1.x+p1il,p1.y+5,0,7,6,5)
+	local p1ilx,p1ily = point_on_circle(p1.x, p1.y, 6, .8)
+	pd_rotate(p1ilx+p1il,p1ily,0,7,6,5)
 	local p1iax, p1iay = point_on_circle(p1.x, p1.y, 10, .12 - p1.br)
 	--arm
 	pd_rotate(p1iax-1+p1.p2iao,p1iay,p1.iar,16,0,6.5,p1.f)
@@ -554,22 +556,23 @@ function draw_wrestlers()
 --p2 inner
 	pal(8,8,0)
 	pal(14,14,0)
-	--spr(1,p2.x+p2il+p2.p2ilo,p2.y+5,2,3,p2.f)
-	pd_rotate(p2.x-23+p2il,p1.y+5,0,7,6,5,true)
+	local p2ilx,p2ily = point_on_circle(p2.x-24, p2.y, 6, .8)
+	pd_rotate(p2ilx+p2il,p2ily,0,7,6,5,true)
 	local p2iax, p2iay = point_on_circle(p2.x, p2.y, 10, .12 - p2.br)
 	pd_rotate(p2iax-1+p2.p2iao,p2iay,p2.iar,16,0,6.5,p2.f)
 	pd_rotate(p2xo,p2yo,p2.br,p2.bodymapx,p2.bodymapy,7.8,p2.f)
 
 --p2 outer
-	pd_rotate(p2.x+p2ol, p1.y+5,0,15,6,7, true)
+	local p2olx,p2oly = point_on_circle(p2.x-2, p2.y, 6, .79)
+	pd_rotate(p2olx+p2ol, p2oly,0,15,6,7, true)
 	local p2oax, p2oay = point_on_circle(p2.x, p2.y, 7,.39 - p2.br)
 	pd_rotate(p2oax+p2.p2oao,p2oay-4,p2.oar,9,0,6.5,p2.f)
 
 --p1 outer
 	pal(8,13,0)
 	pal(14,140,0)
-	--spr(3,p1.x-23+p1ol+p1.p2olo,p1.y+5,3,4,p1.f)
-	pd_rotate(p1.x-23+p1ol, p1.y+5,0,15,6,7)
+	local p1olx,p1oly = point_on_circle(p1.x-23, p1.y, 6, .79)
+	pd_rotate(p1olx+p1ol, p1oly,0,15,6,7)
 	local p1oax, p1oay = point_on_circle(p1.x, p1.y, 7,.39 - p1.br)
 	pd_rotate(p1oax+p1.p2oao,p1oay-4,p1.oar,9,0,6.5,p1.f)
 	pal(13,140,1)
@@ -644,7 +647,7 @@ bbbbbbbbbbeeeeeebbbbbbbbbbbeeeeeeeeeeeeebbbbbbbbbbbcccccccccccccccbbbbbbbb888888
 bbbbbbbbbbeeeeeebbbbbbbbbbbeeeeeeeeeeebbbbbbbbbbbbbcccccccccccccccbbbbbbb888888888bbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbb00000000
 bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbbcccccccccccccccccbbbbbb888888888bbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbb00000000
 bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbbccccccccccccccccccbbbb888888888bbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbcccccccccccccccccccbbbb88888888bbbbbbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbb00000000
+bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbcccccccccccccccccccbbbb888888888bbbbbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbb00000000
 bbbbbbbbbbeeeeeebbbbbbbbbbeeeeeeeeebbbbbbbbbbbbbbcccccccccccccccccccbbbb888888888bbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbb00000000
 bbbbbbbbbbeeeeeeebbbbbbbbbeeeeeeeeebbbbbbbbbbbbbccccccccccccccccccccbbbbb88888888bbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbb00000000
 bbbbbbbbbbbeeeeeeebbbbbbbbbeeeeeeebbbbbbbbbbbbbbccccccccccccccccccccbbbbb88888888bbbbbbbbbbbbb888bbbbbbbbbbbbbbbbbbbbbbb00000000
