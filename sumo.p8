@@ -46,6 +46,7 @@ function _update()
 	end
 end
 
+
 function _draw()
 	cls(1)
 	draw_bg()
@@ -66,6 +67,8 @@ function _draw()
 		--draw_debug()
 		--print(p2out, 78,7,7)
 		--print(p1out, 7,7,7)
+		--pset(p1.x-1,p1.y+25,9)
+		--pset(p2.x-19,p2.y+25,9)
 	end
 end
 -->8
@@ -77,7 +80,7 @@ p1={
 	dx=0,
 	mx=0,
 	f=false,
-	r=0,
+	r=0, --whole body rotation
 	br=0,
 	oar=0,
 	iar=0,
@@ -102,49 +105,6 @@ p1={
 	iag=false,
 	oag=false,
 	grapple=false,
-	draw=function(self)
-			if self.move>10 then
-				ol=2
-				il=0
-			elseif self.move~=0 then
-				ol=0
-				il=2
-			else
-			 ol = 0
-				il = 0
-			end
-	
-		local fl
-		local xo
-		local yo
-		if self.f==true then 
-			fl=-1
-			xo=(self.x-18+(self.br*160))
-			yo=self.y+14
-		else
-			fl=1
-			xo=(self.x-11+(self.br*160))
-			yo=self.y-19
-		end
-		--inner leg
-		spr(1,self.x+il+self.p2ilo,self.y+5,2,3,self.f)
-			--immer arm
-		local iax, iay = point_on_circle(self.x, self.y, 10, .12 - self.br)
-		pd_rotate(iax-1+self.p2iao,iay,self.iar,16,0,6.5,self.f)
-		
-		--body rotation
-		pd_rotate(xo,yo,self.br,self.bodymapx,self.bodymapy,7.8,self.f)
-		
-		
-		--outer leg
-			spr(3,self.x-23+ol+self.p2olo,self.y+5,3,4,self.f)
-		--outer arm
-			local oax, oay = point_on_circle(self.x, self.y, 7,.39 - self.br)
-			pd_rotate(oax+self.p2oao,oay-4,self.oar,9,0,6.5,self.f)
-		
-
-	end,
-	
 	update=function(self)
 		--collission
 		if self.p==0 then
@@ -167,11 +127,13 @@ p1={
 		end
 		--movement
 		if btn(➡️, self.p) then
-			self.dx=1
-			self.move+=1
+			--self.dx=1
+			--self.move+=1
+			self.r-=.005
 		elseif btn(⬅️, self.p) then
-			self.dx=-1
-			self.move+=1
+			--self.dx=-1
+			--self.move+=1
+			self.r+=.005
 		else
 			self.dx=0
 			self.move=0
@@ -527,7 +489,27 @@ function cprint(s,y,c)
 end
 -->8
 --draw wrestlers
+function calculate_legs(p)
+	if p.move>10 then
+		ol=2
+		il=0
+	elseif p.move~=0 then
+		ol=0
+		il=2
+	else
+		ol = 0
+		il = 0
+	end
+	return ol,il
+end
+
+
 function draw_wrestlers()
+	local p1cx=p1.x-1
+	local p1cy=p1.y+25
+	local p2cx=p2.x-21
+	local p2cy=p2.y+25
+	
 	local p1ol, p1il=calculate_legs(p1)
 	local p2ol, p2il=calculate_legs(p2)
 
@@ -545,53 +527,39 @@ function draw_wrestlers()
 --p1 inner
 	pal(8,13,0)
 	--leg
-	local p1ilx,p1ily = point_on_circle(p1.x, p1.y, 6, .8)
-	pd_rotate(p1ilx+p1il,p1ily,0,7,6,5)
-	local p1iax, p1iay = point_on_circle(p1.x, p1.y, 10, .12 - p1.br)
+	local p1ilx,p1ily = point_on_circle(p1cx, p1cy, 20, .23+p1.r)
+	pd_rotate(p1ilx+p1il,p1ily,0-p1.r,7,6,5)
+	local p1iax, p1iay = point_on_circle(p1cx, p1cy, 33, .21 - (p1.br/2)+p1.r)
 	--arm
-	pd_rotate(p1iax-1+p1.p2iao,p1iay,p1.iar,16,0,6.5,p1.f)
+	pd_rotate(p1iax-1+p1.p2iao,p1iay,p1.iar-p1.r,32,3,5,p1.f)
 	--body
-	pd_rotate(p1xo,p1yo,p1.br,p1.bodymapx,p1.bodymapy,7.8,p1.f)
+	local p1bx, p1by = point_on_circle(p1cx+(p1.br*160),p1cy,45,.285+p1.r)
+	pd_rotate(p1bx,p1by,p1.br-p1.r,p1.bodymapx,p1.bodymapy,7.8,p1.f)
 
 --p2 inner
 	pal(8,8,0)
 	pal(14,14,0)
-	local p2ilx,p2ily = point_on_circle(p2.x-24, p2.y, 6, .8)
-	pd_rotate(p2ilx+p2il,p2ily,0,7,6,5,true)
-	local p2iax, p2iay = point_on_circle(p2.x, p2.y, 10, .12 - p2.br)
-	pd_rotate(p2iax-1+p2.p2iao,p2iay,p2.iar,16,0,6.5,p2.f)
-	pd_rotate(p2xo,p2yo,p2.br,p2.bodymapx,p2.bodymapy,7.8,p2.f)
+	local p2ilx,p2ily = point_on_circle(p2cx, p2cy, 20, .27+p2.r)
+	pd_rotate(p2ilx+p2il,p2ily,0+p2.r,7,6,5,true)
+	local p2iax, p2iay = point_on_circle(p2cx, p2cy, 32.1, .29 + (p2.br/2)+p2.r)
+	pd_rotate(p2iax,p2iay,p2.iar+p2.r,32,3,6.5,p2.f)
+	local p2bx, p2by = point_on_circle(p2cx-(p2.br/160),p2cy,12,.20+p2.r)
+	pd_rotate(p2bx,p2by,p2.br+p2.r,p2.bodymapx,p2.bodymapy,7.8,p2.f)
 
 --p2 outer
-	local p2olx,p2oly = point_on_circle(p2.x-2, p2.y, 6, .79)
-	pd_rotate(p2olx+p2ol, p2oly,0,15,6,7, true)
-	local p2oax, p2oay = point_on_circle(p2.x, p2.y, 7,.39 - p2.br)
-	pd_rotate(p2oax+p2.p2oao,p2oay-4,p2.oar,9,0,6.5,p2.f)
+	local p2olx,p2oly = point_on_circle(p2cx, p2cy, 27, .11+p2.r)
+	pd_rotate(p2olx+p2ol, p2oly,0+p2.r,15,6,7, true)
+	local p2oax, p2oay = point_on_circle(p2cx, p2cy, 36,.22 + (p2.br/2)+p2.r)
+	pd_rotate(p2oax,p2oay,p2.oar+p2.r,33,12,6.5,p2.f)
 
 --p1 outer
 	pal(8,13,0)
 	pal(14,140,0)
-	local p1olx,p1oly = point_on_circle(p1.x-23, p1.y, 6, .79)
-	pd_rotate(p1olx+p1ol, p1oly,0,15,6,7)
-	local p1oax, p1oay = point_on_circle(p1.x, p1.y, 7,.39 - p1.br)
-	pd_rotate(p1oax+p1.p2oao,p1oay-4,p1.oar,9,0,6.5,p1.f)
+	local p1olx,p1oly = point_on_circle(p1cx, p1cy, 27, .385+p1.r)
+	pd_rotate(p1olx+p1ol, p1oly,0-p1.r,15,6,7)
+	local p1oax, p1oay = point_on_circle(p1cx, p1cy, 32,.29 - (p1.br/2)+p1.r)
+	pd_rotate(p1oax+p1.p2oao,p1oay-4,p1.oar-p1.r,33,12,6.5,p1.f)
 	pal(13,140,1)
-end
-
-
-
-function calculate_legs(p)
-	if p.move>10 then
-		ol=2
-		il=0
-	elseif p.move~=0 then
-		ol=0
-		il=2
-	else
-		ol = 0
-		il = 0
-	end
-	return ol,il
 end
 -->8
 --grappling
@@ -633,38 +601,38 @@ function struggle()
 	
 end
 __gfx__
-00000000beeebbbbbbbbbbbbbbbbbbbbbeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb888bbbbbb8888bbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-00000000eeeeebbbbbbbbbbbbbbbbbbbeeeeeeeeebbbbbbbbbbbbbbbbbbb00bbbbbbbbbbbbbbbb888888bbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-00700700eeeeeebbbbbbbbbbbbbbbbbeeeeeeeeeeebbbbbbbbbbbbbbbb0000bbbbbbbbbbbbbbb8888888bbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-00077000eeeeeeebbbbbbbbbbbbbbbeeeeeeeeeeeeebbbbbbbbbbbbbbb0000000bbbbbbbbbbb888888888bbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-00077000eeeeeeeebbbbbbbbbbbbbeeeeeeeeeeeeeeeebbbbbbbbbbbbb00000000bbbbbbbbbb888888888bbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-00700700beeeeeeeebbbbbbbbbbbbeeeeeeeeeeeeeeeebbbbbbbbbbbb000000000bbbbbbbbbb888888888bbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-00000000beeeeeeeebbbbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbbb00000cc0bbbbbbbbbb8888888888bbb888888bbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-00000000bbeeeeeeebbbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbbbcc00cccccbbbbbbbbb8888888888bbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbeeeeeeebbbbbbbbbbbeeeeeeeeeeeeeebbbbbbbbbbbbccccc0cccccbbbbbbbbb888888888bbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbeeeeeeebbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbccccccccccccbbbbbbbbb888888888bbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbeeeeeebbbbbbbbbbbeeeeeeeeeeeeebbbbbbbbbbbcccccccccccccccbbbbbbbb888888888bbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbeeeeeebbbbbbbbbbbeeeeeeeeeeebbbbbbbbbbbbbcccccccccccccccbbbbbbb888888888bbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbbcccccccccccccccccbbbbbb888888888bbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbbccccccccccccccccccbbbb888888888bbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbcccccccccccccccccccbbbb888888888bbbbbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbeeeeeebbbbbbbbbbeeeeeeeeebbbbbbbbbbbbbbcccccccccccccccccccbbbb888888888bbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbeeeeeeebbbbbbbbbeeeeeeeeebbbbbbbbbbbbbccccccccccccccccccccbbbbb88888888bbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbeeeeeeebbbbbbbbbeeeeeeebbbbbbbbbbbbbbccccccccccccccccccccbbbbb88888888bbbbbbbbbbbbb888bbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbeeeeeebbbbbbbbbeeeeeeebbbbbbbbbbbbbbcccccccccccccccccccbbbbbb888888888bbbbbbbbbbbb88bbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbeeeebbbbbbbbbeeeeeebbbbbbbbbbbbbbbcccccccccccccccccccbbbbbbb888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbbcccccccccccccccccccbbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbb00cccccccccccccccccbbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeeebbbbbbbbbbbbbbb000cccccccccccccccbbbbbbbbbb88888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbeeeeeeeebbbbbbbbbbbbbbbb00000cccccccccccccbbbbbbbbbb8888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbbbb0000000cccccccccccbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbbeeeeebbbbbbbbbbbbbbbbbbc00000000ccccccc00bbbbbbbbbbbb888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccc00000000cccc000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccc0000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccc0000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccc000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccc00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccc00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000
+00000000beeebbbbbbbbbbbbbbbbbbbbbeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb888bbbbbb8888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+00000000eeeeebbbbbbbbbbbbbbbbbbbeeeeeeeeebbbbbbbbbbbbbbbbbbb00bbbbbbbbbbbbbbbb888888bbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+00700700eeeeeebbbbbbbbbbbbbbbbbeeeeeeeeeeebbbbbbbbbbbbbbbb0000bbbbbbbbbbbbbbb8888888bbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+00077000eeeeeeebbbbbbbbbbbbbbbeeeeeeeeeeeeebbbbbbbbbbbbbbb0000000bbbbbbbbbbb888888888bbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+00077000eeeeeeeebbbbbbbbbbbbbeeeeeeeeeeeeeeeebbbbbbbbbbbbb00000000bbbbbbbbbb888888888bbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+00700700beeeeeeeebbbbbbbbbbbbeeeeeeeeeeeeeeeebbbbbbbbbbbb000000000bbbbbbbbbb888888888bbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+00000000beeeeeeeebbbbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbbb00000cc0bbbbbbbbbb8888888888bbb888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+00000000bbeeeeeeebbbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbbbcc00cccccbbbbbbbbb8888888888bbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbeeeeeeebbbbbbbbbbbeeeeeeeeeeeeeebbbbbbbbbbbbccccc0cccccbbbbbbbbb888888888bbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbeeeeeeebbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbccccccccccccbbbbbbbbb888888888bbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbeeeeeebbbbbbbbbbbeeeeeeeeeeeeebbbbbbbbbbbcccccccccccccccbbbbbbbb888888888bbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbeeeeeebbbbbbbbbbbeeeeeeeeeeebbbbbbbbbbbbbcccccccccccccccbbbbbbb888888888bbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbbcccccccccccccccccbbbbbb888888888bbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbbccccccccccccccccccbbbb888888888bbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbcccccccccccccccccccbbbb888888888bbbbbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbeeeeeebbbbbbbbbbeeeeeeeeebbbbbbbbbbbbbbcccccccccccccccccccbbbb888888888bbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbeeeeeeebbbbbbbbbeeeeeeeeebbbbbbbbbbbbbccccccccccccccccccccbbbbb88888888bbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbeeeeeeebbbbbbbbbeeeeeeebbbbbbbbbbbbbbccccccccccccccccccccbbbbb88888888bbbbbbbbbbbbb888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbeeeeeebbbbbbbbbeeeeeeebbbbbbbbbbbbbbcccccccccccccccccccbbbbbb888888888bbbbbbbbbbbb88bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbeeeebbbbbbbbbeeeeeebbbbbbbbbbbbbbbcccccccccccccccccccbbbbbbb888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbbcccccccccccccccccccbbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbb00cccccccccccccccccbbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeeebbbbbbbbbbbbbbb000cccccccccccccccbbbbbbbbbb88888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbeeeeeeeebbbbbbbbbbbbbbbb00000cccccccccccccbbbbbbbbbb8888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbbbb0000000cccccccccccbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbeeeeebbbbbbbbbbbbbbbbbbc00000000ccccccc00bbbbbbbbbbbb888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccc00000000cccc000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccc0000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccc0000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccc000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccc00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccc00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbbbbbbe00000000eeeeeee00bbbbbbbbbbbbbbb666888888888bb888888bbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
 bbbbbbbbbeee00000000eeee000bbbbbbbbbbbbbbbbb888888888bbb88888bbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
 bbbbbbbbbeeeee0000000000000bbbbbbbbbbbbbbbbb88888888bbbb8888bbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
@@ -828,13 +796,19 @@ __label__
 88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 
 __map__
-0607080c0c0c0c0c090a0c0c0c0c0c0c0b0c0d0e746668686868666666665600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-1617180c0c0c0c0c191a0c0c0c0c0c0c1b1c1d1e746650515253666666595600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-2627280c0c0c0c0c292a0c0c0c0c0c0c2b2c2d2e746660616263666666595600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3637380c0c0c0c0c393a3b3c0c0c0c0c3b3c3d3e746670717273666666595600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0c0c0c0c340c0c0c0c0c0c0c1e1e1e0656565656565640414243565656595600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-76767676340c0c0c0c0c0c0c1e1e1e1e56565656565656565656565656565600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-76767634340c0c01020c0c0c1e1e250304050656565656565656565656565600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0607080c0c0c0c0c0d0d0c0c0c0c0c0d0d0d0d0e746668686868666666665600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+1617180c0c0c0c0c0d0d0c0c0c0c0c0d0d0d1d1e746650515253666666595600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+2627280c0c0c0c0c0d0d0c0d0d0d0d0d0d0d2d2e746660616263666666595600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3637380c0c0c0c0c0d0d0d3c0c0c0c0c3b3c3d3e7466707172736666665956000b0c0d0e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0c0c0c0c340c0c0c0c0c0c0c1e1e1e06565656565656404142435656565956001b1c1d1e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+76767676340c0c0c0c0c0c0c1e1e1e1e565656565656565656565656565656002b2c2d2e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+76767634340c0c01020c0c0c1e1e2503040506565656565656565656565656003b3c3d3e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 76763434340c0c11120c0c0c1e34351314150d56565656565656565656560000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 76763434340c0c21220c0c0c0c0c0c2324250d56565656000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0076760000000000000000000000003334350d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000090a0d0c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000191a0d0d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000292a0d0d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000393a3b3c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
