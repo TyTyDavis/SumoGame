@@ -15,6 +15,7 @@ function _init()
 	--pal(13,8,1)
 	state="play"
 	winner=" "
+	events={typ="shake",p=p1,amt=10}
 end
 
 
@@ -77,6 +78,8 @@ p1={
 	p=0,
 	x = 40, --body center
 	y=71, --body center
+	shake=0,
+	knockback=0,
 	dx=0,
 	mx=0,
 	f=false,
@@ -127,13 +130,13 @@ p1={
 		end
 		--movement
 		if btn(➡️, self.p) then
-			--self.dx=1
-			--self.move+=1
-			self.r-=.005
+			self.dx=1
+			self.move+=1
+			--self.r-=.005
 		elseif btn(⬅️, self.p) then
-			--self.dx=-1
-			--self.move+=1
-			self.r+=.005
+			self.dx=-1
+			self.move+=1
+			--self.r+=.005
 		else
 			self.dx=0
 			self.move=0
@@ -175,6 +178,8 @@ p1={
 				self.oar-=0.05
 				if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
 					other(self.p).stam-=abs(self.oar)*100
+					other(self.p).shake+=abs(self.oar)*5
+					other(self.p).knockback+=abs(self.oar)*8
 					self.ocount=0
 					self.oslap="not ready"
 				end
@@ -216,6 +221,8 @@ p1={
 				self.iar-=0.05
 				if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
 					other(self.p).stam-=abs(self.iar)*100
+					other(self.p).shake+=abs(self.iar)*5
+					other(self.p).knockback+=abs(self.iar)*8
 					self.icount=0
 					self.islap="not ready"
 				end
@@ -250,7 +257,19 @@ p1={
 		self.grapple=true
 	end
 	if not self.grapple and not other(self.p).grapple then
-		self.x+=self.dx/3
+		if self.knockback==0 then
+			self.x+=self.dx/3
+		else
+			if self.p==0 then
+				self.x-=self.knockback/3
+			else
+				self.x+=self.knockback/3
+			end
+			self.knockback=self.knockback*0.5
+			if self.knockback<0.05 then
+				self.knockback=0
+			end
+		end
 	else
 		struggle()
 	end
@@ -317,6 +336,7 @@ p2.bodymapy=5
 p2.iarmhitxy={0,0}
 p2.oarmhitxy={0,0}
 p2.grapple=false
+p2.shake=0
 
 -->8
 --helpers
@@ -505,6 +525,16 @@ end
 
 
 function draw_wrestlers()
+	local p1xshake=1-rnd(2)
+	local p1yshake=1-rnd(2)
+	p1xshake=p1xshake*p1.shake
+	p1yshake=p1yshake*p1.shake
+	
+	local p2xshake=1-rnd(2)
+	local p2yshake=1-rnd(2)
+	p2xshake=p2xshake*p2.shake
+	p2yshake=p2yshake*p2.shake
+	
 	local p1cx=p1.x-1
 	local p1cy=p1.y+25
 	local p2cx=p2.x-21
@@ -525,6 +555,7 @@ function draw_wrestlers()
 
 
 --p1 inner
+	camera(p1xshake, p1yshake)
 	pal(8,13,0)
 	--leg
 	local p1ilx,p1ily = point_on_circle(p1cx, p1cy, 20, .23+p1.r)
@@ -535,8 +566,10 @@ function draw_wrestlers()
 	--body
 	local p1bx, p1by = point_on_circle(p1cx+(p1.br*160),p1cy,45,.285+p1.r)
 	pd_rotate(p1bx,p1by,p1.br-p1.r,p1.bodymapx,p1.bodymapy,7.8,p1.f)
+	camera(0, 0)
 
 --p2 inner
+	camera(p2xshake, p2yshake)
 	pal(8,8,0)
 	pal(14,14,0)
 	local p2ilx,p2ily = point_on_circle(p2cx, p2cy, 20, .27+p2.r)
@@ -551,8 +584,10 @@ function draw_wrestlers()
 	pd_rotate(p2olx+p2ol, p2oly,0+p2.r,15,6,7, true)
 	local p2oax, p2oay = point_on_circle(p2cx, p2cy, 36,.22 + (p2.br/2)+p2.r)
 	pd_rotate(p2oax,p2oay,p2.oar+p2.r,33,12,6.5,p2.f)
-
+	camera(0, 0)
+	
 --p1 outer
+	camera(p1xshake, p1yshake)
 	pal(8,13,0)
 	pal(14,140,0)
 	local p1olx,p1oly = point_on_circle(p1cx, p1cy, 27, .385+p1.r)
@@ -560,6 +595,17 @@ function draw_wrestlers()
 	local p1oax, p1oay = point_on_circle(p1cx, p1cy, 32,.29 - (p1.br/2)+p1.r)
 	pd_rotate(p1oax+p1.p2oao,p1oay-4,p1.oar-p1.r,33,12,6.5,p1.f)
 	pal(13,140,1)
+	camera(0, 0)
+	
+	p1.shake=p1.shake*0.5
+	if p1.shake<0.05 then
+		p1.shake=0
+	end
+	
+	p2.shake=p2.shake*0.5
+	if p2.shake<0.05 then
+		p2.shake=0
+	end
 end
 -->8
 --grappling
