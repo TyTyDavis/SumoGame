@@ -15,7 +15,7 @@ function _init()
 	--pal(13,8,1)
 	state="play"
 	winner=" "
-	events={typ="shake",p=p1,amt=10}
+	blinkframe=0
 end
 
 
@@ -80,6 +80,9 @@ p1={
 	y=71, --body center
 	shake=0,
 	knockback=0,
+	recover=false,
+	block=false,
+	canact=true,
 	dx=0,
 	mx=0,
 	f=false,
@@ -128,114 +131,132 @@ p1={
 		else
 			self.bodycollide = false
 		end
-		--movement
-		if btn(➡️, self.p) then
-			self.dx=1
-			self.move+=1
-			--self.r-=.005
-		elseif btn(⬅️, self.p) then
-			self.dx=-1
-			self.move+=1
-			--self.r+=.005
-		else
-			self.dx=0
-			self.move=0
-		end
-		if self.move==20 then self.move = 0 end
-		--posture
+		--block/recover
 		if btn(⬆️, self.p) then
-			if self.br>0 then
-				self.br-=0.001
-			end
+			self.block=true
 		elseif btn(⬇️,self.p) then
-			if self.br<0.05 then
-				self.br+=0.001
+			self.recover=true
+		end
+		if not btn(⬇️,self.p) then
+			self.recover=false
+		end
+		if not btn(⬆️,self.p) then
+			self.block=false
+		end
+		if self.recover or self.block then
+			self.canact=false
+		else
+			self.canact=true
+		end
+		--movement
+		if self.canact then
+			if btn(➡️, self.p) then
+				self.dx=1
+				self.move+=1
+				--self.r-=.005
+			elseif btn(⬅️, self.p) then
+				self.dx=-1
+				self.move+=1
+				--self.r+=.005
+			else
+				self.dx=0
+				self.move=0
 			end
 		end
 		
+		if self.move==20 then self.move = 0 end
 		--outer arm
-		if btn(❎,self.p) then
-			self.ocount+=1
-			if self.oar>-0.18 and self.oslap=="ready" then
-				if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
-					self.oag=true
-				else
-					self.oag=false
-					self.oar-=0.01
-				end
-			end
-		else
-			self.oag=false
-			if self.ocount<10 and self.ocount!=0 then
-				if self.oslap=="ready" then
-					self.oslap="slap"
-					self.stam-=9
-				end
-			end	
-		
-		if self.oslap=="slap" then
-			if self.oar>-0.18 then
-				self.oar-=0.05
-				if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
-					other(self.p).stam-=abs(self.oar)*100
-					other(self.p).shake+=abs(self.oar)*5
-					other(self.p).knockback+=abs(self.oar)*8
-					self.ocount=0
-					self.oslap="not ready"
+		if self.canact then
+			if btn(❎,self.p) then
+				self.ocount+=1
+				if self.oar>-0.18 and self.oslap=="ready" then
+					if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
+						self.oag=true
+					else
+						self.oag=false
+						self.oar-=0.01
+					end
 				end
 			else
-				self.oslap="not ready"
-				self.ocount=0
+				self.oag=false
+				if self.ocount<10 and self.ocount!=0 then
+					if self.oslap=="ready" then
+						self.oslap="slap"
+						self.stam-=9
+					end
+				end	
+			
+			if self.oslap=="slap" then
+				if self.oar>-0.18 then
+					self.oar-=0.05
+					if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
+						other(self.p).stam-=abs(self.oar)*100
+						other(self.p).shake+=abs(self.oar)*5
+						other(self.p).knockback+=abs(self.oar)*8
+						self.ocount=0
+						self.oslap="not ready"
+					end
+				else
+					self.oslap="not ready"
+					self.ocount=0
+				end
+			else
+				if self.oar>0 then 
+					self.ocount=0
+					self.oslap="ready"
+				end
+			end
 			end
 		else
-			if self.oar>0 then 
-				self.ocount=0
-				self.oslap="ready"
-			end
+			self.oslap="not ready"
 		end
-		end
+	
 		if (not btn(❎,self.p) or self.oslap=="not ready") and self.oar<0 then
 			self.oar+=0.02
 		end
-		if btn(🅾️,self.p) then
-			self.icount+=1
-			if self.iar>-0.18 and self.islap=="ready" then
-					if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
-						self.iag=true
-					else	
-						self.iag=false
-						self.iar-=0.01
-					end
-			end
-		else
-			self.iag=false
-			if self.icount<10 and self.icount!=0 then
-				if self.islap=="ready" then
-					self.islap="slap"
-					self.stam-=9
-				end
-			end	
-		
-		if self.islap=="slap" then
-			if self.iar>-0.18 then
-				self.iar-=0.05
-				if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
-					other(self.p).stam-=abs(self.iar)*100
-					other(self.p).shake+=abs(self.iar)*5
-					other(self.p).knockback+=abs(self.iar)*8
-					self.icount=0
-					self.islap="not ready"
+		if self.canact then
+			if btn(🅾️,self.p) then
+				self.icount+=1
+				if self.iar>-0.18 and self.islap=="ready" then
+						if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
+							self.iag=true
+						else	
+							self.iag=false
+							self.iar-=0.01
+						end
 				end
 			else
-				self.islap="not ready"
-				self.icount=0
-			end
-		else
-			if self.iar>0 then 
-				self.icount=0
-				self.islap="ready"
+				self.iag=false
+				if self.icount<10 and self.icount!=0 then
+					if self.islap=="ready" then
+						self.islap="slap"
+						self.stam-=9
+					end
+				end	
+			
+			if self.islap=="slap" then
+				if self.iar>-0.18 then
+					self.iar-=0.05
+					if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
+						other(self.p).stam-=abs(self.iar)*100
+						other(self.p).shake+=abs(self.iar)*5
+						other(self.p).knockback+=abs(self.iar)*8
+						self.icount=0
+						self.islap="not ready"
+					end
+				else
+					self.islap="not ready"
+					self.icount=0
+				end
+			else
+				if self.iar>0 then 
+					self.icount=0
+					self.islap="ready"
+				end
 			end
 		end
+	else
+		self.islap="not ready"
 	end
 	if (not btn(🅾️,self.p) or self.islap=="not ready") and self.iar<0 then
 		self.iar+=0.02
@@ -277,13 +298,13 @@ p1={
 		
 		--stam
 		if self.dx!=0 then self.stam-=0.1 end
-		if btn(⬆️, self.p) or btn(⬇️,self.p) then self.stam-=0.1 end
+		if btn(⬆️, self.p) then self.stam-=0.1 end
 		if btn(❎,self.p) or btn(🅾️,self.p) then self.stam-=0.1 end
 		if not btn(❎,self.p) and not btn(🅾️,self.p) then self.stam+=0.05 end
 		if not btn(⬇️,self.p) and not btn(⬆️,self.p) then self.stam+=0.05 end
 		if self.stam>100 then self.stam=100 end
 		if self.stam<0 then self.stam=0 end
-		
+		if btn(⬇️,self.p) then self.stam+=1 end
 		--balance
 		if self.dx!=0 then
 			self.bal+=self.dx/10
@@ -525,6 +546,12 @@ end
 
 
 function draw_wrestlers()
+	blinkframe+=1
+	local blink=false
+	if blinkframe>8 then
+		blink=true
+		if blinkframe>16 then blinkframe=0 end
+	end
 	local p1xshake=1-rnd(2)
 	local p1yshake=1-rnd(2)
 	p1xshake=p1xshake*p1.shake
@@ -564,9 +591,20 @@ function draw_wrestlers()
 	--arm
 	pd_rotate(p1iax-1+p1.p2iao,p1iay,p1.iar-p1.r,32,3,5,p1.f)
 	--body
+	if p1.recover then
+		if blink then
+			pal(12,13,0)
+		else
+			pal(12,12,0)
+		end
+	else
+		pal(12,12,0)
+	end
 	local p1bx, p1by = point_on_circle(p1cx+(p1.br*160),p1cy,45,.285+p1.r)
 	pd_rotate(p1bx,p1by,p1.br-p1.r,p1.bodymapx,p1.bodymapy,7.8,p1.f)
 	camera(0, 0)
+	pal(12,12,0)
+	
 
 --p2 inner
 	camera(p2xshake, p2yshake)
@@ -576,9 +614,18 @@ function draw_wrestlers()
 	pd_rotate(p2ilx+p2il,p2ily,0+p2.r,7,6,5,true)
 	local p2iax, p2iay = point_on_circle(p2cx, p2cy, 32.1, .29 + (p2.br/2)+p2.r)
 	pd_rotate(p2iax,p2iay,p2.iar+p2.r,32,3,6.5,p2.f)
+	if p2.recover then
+		if blink then
+			pal(14,8,0)
+		else
+			pal(14,14,0)
+		end
+	else
+		pal(14,14,0)
+	end
 	local p2bx, p2by = point_on_circle(p2cx-(p2.br/160),p2cy,12,.20+p2.r)
 	pd_rotate(p2bx,p2by,p2.br+p2.r,p2.bodymapx,p2.bodymapy,7.8,p2.f)
-
+	pal(14,14,0)
 --p2 outer
 	local p2olx,p2oly = point_on_circle(p2cx, p2cy, 27, .11+p2.r)
 	pd_rotate(p2olx+p2ol, p2oly,0+p2.r,15,6,7, true)
