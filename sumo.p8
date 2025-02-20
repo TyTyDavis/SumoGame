@@ -66,14 +66,15 @@ function _draw()
 		if p2.x>=127 then p2out=true end
 		if p1.x<=24 then p1out=true end
 		--draw_debug()
-		--print(p2out, 78,7,7)
-		--print(p1out, 7,7,7)
+		print(p2.prc, 78,7,7)
+		print(p1.prc, 7,7,7)
 		--pset(p1.x-1,p1.y+25,9)
 		--pset(p2.x-19,p2.y+25,9)
 	end
 end
 -->8
 --rikishi
+block_stun=10
 p1={
 	p=0,
 	x = 40, --body center
@@ -83,11 +84,13 @@ p1={
 	recover=false,
 	block=false,
 	canact=true,
+	canblock=true,
 	dx=0,
 	mx=0,
 	f=false,
 	r=0, --whole body rotation
 	br=0,
+	prc=10,
 	oar=0,
 	iar=0,
 	move=0,
@@ -111,6 +114,7 @@ p1={
 	iag=false,
 	oag=false,
 	grapple=false,
+	stun=0,
 	update=function(self)
 		--collission
 		if self.p==0 then
@@ -131,19 +135,39 @@ p1={
 		else
 			self.bodycollide = false
 		end
+		if self.islap=="ready" 
+					and self.oslap=="ready" 
+					and self.iar>-0.03
+					and self.oar>-0.03
+		then
+			self.canblock=true
+		else
+			self.canblock=false
+		end
 		--block/recover
-		if btn(⬆️, self.p) then
+		if btn(⬆️, self.p) and self.canblock then
 			self.block=true
-		elseif btn(⬇️,self.p) then
-			self.recover=true
+			if self.br>=-0.024 then
+				self.br-=.011
+			end
 		end
 		if not btn(⬇️,self.p) then
 			self.recover=false
+			if self.br>0 then
+				self.br-=.009
+			end
 		end
 		if not btn(⬆️,self.p) then
 			self.block=false
+			if self.br<0 then
+				self.br+=.009
+			end
 		end
-		if self.recover or self.block then
+		if self.recover or self.block or self.knockback>0 then
+			self.canact=false
+			self.dx=0
+		elseif self.stun>0 then
+			self.stun-=1
 			self.canact=false
 		else
 			self.canact=true
@@ -169,14 +193,19 @@ p1={
 		if self.canact then
 			if btn(❎,self.p) then
 				self.ocount+=1
-				if self.oar>-0.18 and self.oslap=="ready" then
-					if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
-						self.oag=true
+				if self.oar>-0.18 then
+					if self.oag then
+						self.oar=self.oar
 					else
 						self.oag=false
-						self.oar-=0.01
+						if self.oslap=="ready" then
+							self.oar-=0.01
+						end
 					end
-				end
+			end
+			if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
+					self.oag=true
+			end
 			else
 				self.oag=false
 				if self.ocount<10 and self.ocount!=0 then
@@ -188,11 +217,16 @@ p1={
 			
 			if self.oslap=="slap" then
 				if self.oar>-0.18 then
-					self.oar-=0.05
+					self.oar-=0.1
 					if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
-						other(self.p).stam-=abs(self.oar)*100
+						if not other(self.p).block then
+							other(self.p).prc+=flr(10*(self.oar/-0.19))
+						else
+							self.stun+=block_stun
+							self.shake+=1
+						end
 						other(self.p).shake+=abs(self.oar)*5
-						other(self.p).knockback+=abs(self.oar)*8
+						other(self.p).knockback+=(abs(self.oar)*300)*(other(self.p).prc/100)
 						self.ocount=0
 						self.oslap="not ready"
 					end
@@ -200,31 +234,30 @@ p1={
 					self.oslap="not ready"
 					self.ocount=0
 				end
-			else
-				if self.oar>0 then 
+			end
+			end
+		end
+		if self.oar>0 then 
 					self.ocount=0
 					self.oslap="ready"
-				end
-			end
-			end
-		else
-			self.oslap="not ready"
 		end
-	
-		if (not btn(❎,self.p) or self.oslap=="not ready") and self.oar<0 then
+		if (not btn(❎,self.p) or self.oslap=="not ready") and self.oar<0 and self.stun<=0 then
 			self.oar+=0.02
 		end
 		if self.canact then
 			if btn(🅾️,self.p) then
 				self.icount+=1
 				if self.iar>-0.18 and self.islap=="ready" then
-						if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
-							self.iag=true
+						if self.iag then
+							self.iar=self.iar
 						else	
 							self.iag=false
 							self.iar-=0.01
 						end
 				end
+				if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
+							self.iag=true
+				end 
 			else
 				self.iag=false
 				if self.icount<10 and self.icount!=0 then
@@ -236,11 +269,16 @@ p1={
 			
 			if self.islap=="slap" then
 				if self.iar>-0.18 then
-					self.iar-=0.05
+					self.iar-=0.1
 					if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
-						other(self.p).stam-=abs(self.iar)*100
+						if not other(self.p).block then
+							other(self.p).prc+=flr(10*(self.iar/-0.19))
+						else
+							self.stun+=block_stun
+							self.shake+=1
+						end
 						other(self.p).shake+=abs(self.iar)*5
-						other(self.p).knockback+=abs(self.iar)*8
+						other(self.p).knockback+=(abs(self.iar)*300)*(other(self.p).prc/100)
 						self.icount=0
 						self.islap="not ready"
 					end
@@ -249,16 +287,14 @@ p1={
 					self.icount=0
 				end
 			else
-				if self.iar>0 then 
-					self.icount=0
-					self.islap="ready"
-				end
 			end
 		end
-	else
-		self.islap="not ready"
 	end
-	if (not btn(🅾️,self.p) or self.islap=="not ready") and self.iar<0 then
+	if self.iar>0 then 
+		self.icount=0
+		self.islap="ready"
+	end
+	if (not btn(🅾️,self.p) or self.islap=="not ready") and self.iar<0 and self.stun<=0 then
 		self.iar+=0.02
 	end
 
@@ -282,11 +318,11 @@ p1={
 			self.x+=self.dx/3
 		else
 			if self.p==0 then
-				self.x-=self.knockback/3
+				self.x-=self.knockback/20
 			else
-				self.x+=self.knockback/3
+				self.x+=self.knockback/20
 			end
-			self.knockback=self.knockback*0.5
+			self.knockback=self.knockback*.6
 			if self.knockback<0.05 then
 				self.knockback=0
 			end
@@ -297,7 +333,6 @@ p1={
 	
 		
 		--stam
-		if self.dx!=0 then self.stam-=0.1 end
 		if btn(⬆️, self.p) then self.stam-=0.1 end
 		if btn(❎,self.p) or btn(🅾️,self.p) then self.stam-=0.1 end
 		if not btn(❎,self.p) and not btn(🅾️,self.p) then self.stam+=0.05 end
@@ -662,9 +697,6 @@ function struggle()
 	
 	if p1.dx>0 then
 		if p1.bodycollide then p1push+=10 end	
-		if p1.br>p2.br then
-			p1push+=(p1.br-p2.br)*1000
-		end
 	end
 	if p1.iag then p1push+=10 end
 	if p1.oag then p1push+=10	end
@@ -672,9 +704,6 @@ function struggle()
 	
 	if p2.dx<0 then
 		if p2.bodycollide then p2push+=10 end	
-		if p2.br>p1.br then
-			p2push+=(p2.br-p1.br)*1000
-		end
 	end
 	if p2.iag then p2push+=10 end
 	if p2.oag then p2push+=10	end
@@ -713,14 +742,14 @@ bbbbbbbbbbeeeeeebbbbbbbbbbeeeeeeeeebbbbbbbbbbbbbbcccccccccccccccccccbbbb88888888
 bbbbbbbbbbeeeeeeebbbbbbbbbeeeeeeeeebbbbbbbbbbbbbccccccccccccccccccccbbbbb88888888bbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbbbbbbbbeeeeeeebbbbbbbbbeeeeeeebbbbbbbbbbbbbbccccccccccccccccccccbbbbb88888888bbbbbbbbbbbbb888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbbbbbbbbbeeeeeebbbbbbbbbeeeeeeebbbbbbbbbbbbbbcccccccccccccccccccbbbbbb888888888bbbbbbbbbbbb88bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbeeeebbbbbbbbbeeeeeebbbbbbbbbbbbbbbcccccccccccccccccccbbbbbbb888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbeeeebbbbbbbbbeeeeeebbbbbbbbbbbbbbbcccccccccccccccccccbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbbcccccccccccccccccccbbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbb00cccccccccccccccccbbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeeebbbbbbbbbbbbbbb000cccccccccccccccbbbbbbbbbb88888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbeeeeeeeebbbbbbbbbbbbbbbb00000cccccccccccccbbbbbbbbbb8888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbbbb0000000cccccccccccbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbbeeeeebbbbbbbbbbbbbbbbbbc00000000ccccccc00bbbbbbbbbbbb888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccc00000000cccc000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeeebbbbbbbbbbbbbbb000cccccccccccccccbbbbbbbbbb888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbeeeeeeeebbbbbbbbbbbbbbbb00000cccccccccccccbbbbbbbbbb88888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbbbb0000000cccccccccccbbbbbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbeeeeebbbbbbbbbbbbbbbbbbc00000000ccccccc00bbbbbbbbbbbb8888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccc00000000cccc000bbbbbbbbbbbbb88bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccc0000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccc0000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccc000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
