@@ -16,6 +16,9 @@ function _init()
 	state="play"
 	winner=" "
 	blinkframe=0
+	camx=2
+	camy=0
+	camt=0
 end
 
 
@@ -23,11 +26,11 @@ function _update()
 	if state=="play" then
 		p1:update()
 		p2:update()
-		if p1.x<=24 then
-			winner="p2"
-		elseif p2.x>=127 then
-			winner="p1"
-		end
+		--if p1.x<=24 then
+			--winner="p2"
+		--elseif p2.x>=127 then
+			--winner="p1"
+		--end
 		if winner!=" " then
 			state="reset"
 		end
@@ -49,6 +52,8 @@ end
 
 
 function _draw()
+	update_camera()
+	camera(camx,camy)
 	cls(1)
 	draw_bg()
 	--print(state,100,113,7)
@@ -59,15 +64,13 @@ function _draw()
 		draw_reset()
 	elseif state=="play" then
 		draw_wrestlers()
-		draw_stam()
-		draw_balance()
 		p1out=false
 		p2out=false
 		if p2.x>=127 then p2out=true end
 		if p1.x<=24 then p1out=true end
 		--draw_debug()
-		print(p2.prc, 78,7,7)
-		print(p1.prc, 7,7,7)
+		draw_percent()
+		--print(camx,camx+10,10,7)
 		--pset(p1.x-1,p1.y+25,9)
 		--pset(p2.x-19,p2.y+25,9)
 	end
@@ -90,7 +93,8 @@ p1={
 	f=false,
 	r=0, --whole body rotation
 	br=0,
-	prc=10,
+	prc=0,
+	prc_target=0,
 	oar=0,
 	iar=0,
 	move=0,
@@ -175,12 +179,16 @@ p1={
 		--movement
 		if self.canact then
 			if btn(➡️, self.p) then
-				self.dx=1
-				self.move+=1
+				--if self.p==0 or (self.p==1 and self.canmove) then
+					self.dx=1
+					self.move+=1
+				--end
 				--self.r-=.005
 			elseif btn(⬅️, self.p) then
-				self.dx=-1
-				self.move+=1
+				--if self.p==1 or (self.p==0 and self.canmove) then
+					self.dx=-1
+					self.move+=1
+				--end
 				--self.r+=.005
 			else
 				self.dx=0
@@ -220,7 +228,7 @@ p1={
 					self.oar-=0.1
 					if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
 						if not other(self.p).block then
-							other(self.p).prc+=flr(10*(self.oar/-0.19))
+							other(self.p).prc_target+=flr(10*(self.oar/-0.19))
 						else
 							self.stun+=block_stun
 							self.shake+=1
@@ -272,7 +280,7 @@ p1={
 					self.iar-=0.1
 					if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
 						if not other(self.p).block then
-							other(self.p).prc+=flr(10*(self.iar/-0.19))
+							other(self.p).prc_target+=flr(10*(self.iar/-0.19))
 						else
 							self.stun+=block_stun
 							self.shake+=1
@@ -466,13 +474,11 @@ end
 -->8
 --bg/ui
 function draw_bg()
-	rectfill(0,75,128,128,4)
-	oval(3,80,124,115,7)
+	rectfill(-50,75,128+50,128,4)
+	oval(3-40,80,124+40,115,7)
 	line(50,90,50,97)
 	line(77,90,77,97)
 end
-
-
 
 function draw_debug()
 	bcx=p1.x
@@ -528,25 +534,26 @@ function draw_debug()
 	pset(p2.x-24,p2.y,9)
 end
 
-
-function draw_stam()
-	rectfill(6,6,6+(43*(p1.stam/100)),9,12)
-	rect(5,5,50,10,6)
-	pal(8,8,0)
+function draw_percent()
+	local p1xo=0
+	local p1yo=0
+	if p1.prc_target>0 then
+		p1.prc+=1
+		p1.prc_target-=1
+		p1xo=1-rnd(2)
+		p1yo=1-rnd(2)
+	end
 	
-	rectfill(78,6,78+(43*p2.stam/100),9,8)
-	rect(77,5,122,10,6)
-	
-end
-
-function draw_balance()
-	circfill(6+(43*(p1.bal/100)), 18,3,12)
-	rect(5,15,50,21,6)
-	line(27,15,27,21,6)
-	pal(8,8,0)
-	circfill(79+(43*(p2.bal/100)), 18,3,8)
-	rect(77,15,122,21,6)
-	line(100,15,100,21,6)
+	local p2xo=0
+	local p2yo=0
+	if p2.prc_target>0 then
+		p2.prc+=1
+		p2.prc_target-=1
+		p2xo=1-rnd(2)
+		p2yo=1-rnd(2)
+	end
+	print("\^t\^w"..p2.prc.."\^-t\^w%", camx+84+p2xo,camy+7+p2yo,7)
+	print("\^t\^w"..p1.prc.."\^-t\^w%", camx+27+p1xo,camy+7+p1yo,7)
 end
 
 function draw_menu()
@@ -562,6 +569,12 @@ function cprint(s,y,c)
 	local c = c or 7
 	local x = 64-#s*2
 	print(s,x,y,7)
+end
+
+function update_camera()
+	local p1c=p1.x-1
+	local p2c=p2.x-21
+	camx=((p1c+p2c)/2)-62
 end
 -->8
 --draw wrestlers
@@ -581,12 +594,8 @@ end
 
 
 function draw_wrestlers()
-	blinkframe+=1
-	local blink=false
-	if blinkframe>8 then
-		blink=true
-		if blinkframe>16 then blinkframe=0 end
-	end
+	p1x=flr(p1.x)
+	p2x=flr(p2.x)
 	local p1xshake=1-rnd(2)
 	local p1yshake=1-rnd(2)
 	p1xshake=p1xshake*p1.shake
@@ -597,67 +606,50 @@ function draw_wrestlers()
 	p2xshake=p2xshake*p2.shake
 	p2yshake=p2yshake*p2.shake
 	
-	local p1cx=p1.x-1
+	local p1cx=p1x-1
 	local p1cy=p1.y+25
-	local p2cx=p2.x-21
+	local p2cx=p2x-21
 	local p2cy=p2.y+25
 	
 	local p1ol, p1il=calculate_legs(p1)
 	local p2ol, p2il=calculate_legs(p2)
 
 	local p2fl=-1
-	local p2xo=p2.x-18+(p2.br*160)
+	local p2xo=p2x-18+(p2.br*160)
 	local p2yo=p2.y+14
  
 
 
 	local	p1fl=1
-	local	p1xo=p1.x-11+(p1.br*160)
+	local	p1xo=p1x-11+(p1.br*160)
 	local	p1yo=p1.y-19
 
 
 --p1 inner
-	camera(p1xshake, p1yshake)
+	camera(camx, camy+p1yshake)
 	pal(8,13,0)
 	--leg
 	local p1ilx,p1ily = point_on_circle(p1cx, p1cy, 20, .23+p1.r)
 	pd_rotate(p1ilx+p1il,p1ily,0-p1.r,7,6,5)
 	local p1iax, p1iay = point_on_circle(p1cx, p1cy, 33, .21 - (p1.br/2)+p1.r)
 	--arm
-	pd_rotate(p1iax-1+p1.p2iao,p1iay,p1.iar-p1.r,32,3,5,p1.f)
+	pd_rotate(p1iax-1,p1iay,p1.iar-p1.r,32,3,5,p1.f)
 	--body
-	if p1.recover then
-		if blink then
-			pal(12,13,0)
-		else
-			pal(12,12,0)
-		end
-	else
-		pal(12,12,0)
-	end
 	local p1bx, p1by = point_on_circle(p1cx+(p1.br*160),p1cy,45,.285+p1.r)
 	pd_rotate(p1bx,p1by,p1.br-p1.r,p1.bodymapx,p1.bodymapy,7.8,p1.f)
-	camera(0, 0)
+	camera(camx, camy)
 	pal(12,12,0)
 	
 
 --p2 inner
-	camera(p2xshake, p2yshake)
+	camera(camx, camy+p2yshake)
 	pal(8,8,0)
 	pal(14,14,0)
 	local p2ilx,p2ily = point_on_circle(p2cx, p2cy, 20, .27+p2.r)
 	pd_rotate(p2ilx+p2il,p2ily,0+p2.r,7,6,5,true)
 	local p2iax, p2iay = point_on_circle(p2cx, p2cy, 32.1, .29 + (p2.br/2)+p2.r)
 	pd_rotate(p2iax,p2iay,p2.iar+p2.r,32,3,6.5,p2.f)
-	if p2.recover then
-		if blink then
-			pal(14,8,0)
-		else
-			pal(14,14,0)
-		end
-	else
-		pal(14,14,0)
-	end
+
 	local p2bx, p2by = point_on_circle(p2cx-(p2.br/160),p2cy,12,.20+p2.r)
 	pd_rotate(p2bx,p2by,p2.br+p2.r,p2.bodymapx,p2.bodymapy,7.8,p2.f)
 	pal(14,14,0)
@@ -666,10 +658,10 @@ function draw_wrestlers()
 	pd_rotate(p2olx+p2ol, p2oly,0+p2.r,15,6,7, true)
 	local p2oax, p2oay = point_on_circle(p2cx, p2cy, 36,.22 + (p2.br/2)+p2.r)
 	pd_rotate(p2oax,p2oay,p2.oar+p2.r,33,12,6.5,p2.f)
-	camera(0, 0)
+	camera(camx, camy)
 	
 --p1 outer
-	camera(p1xshake, p1yshake)
+	camera(camx, camy+p1yshake)
 	pal(8,13,0)
 	pal(14,140,0)
 	local p1olx,p1oly = point_on_circle(p1cx, p1cy, 27, .385+p1.r)
@@ -677,7 +669,7 @@ function draw_wrestlers()
 	local p1oax, p1oay = point_on_circle(p1cx, p1cy, 32,.29 - (p1.br/2)+p1.r)
 	pd_rotate(p1oax+p1.p2oao,p1oay-4,p1.oar-p1.r,33,12,6.5,p1.f)
 	pal(13,140,1)
-	camera(0, 0)
+	camera(camx, camy)
 	
 	p1.shake=p1.shake*0.5
 	if p1.shake<0.05 then
