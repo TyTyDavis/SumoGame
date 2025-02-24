@@ -19,6 +19,9 @@ function _init()
 	camx=2
 	camy=0
 	camt=0
+	--set btnp repeat to never
+	poke(0x5f5c, 255)
+	poke(0x5f5d, 255)
 end
 
 
@@ -70,7 +73,7 @@ function _draw()
 		if p1.x<=24 then p1out=true end
 		--draw_debug()
 		draw_percent()
-		--print(camx,camx+10,10,7)
+		print(p1.gstate,camx+10,10,7)
 		--pset(p1.x-1,p1.y+25,9)
 		--pset(p2.x-19,p2.y+25,9)
 	end
@@ -78,6 +81,10 @@ end
 -->8
 --rikishi
 block_stun=10
+dash=50
+grab_dash=20
+dash_cool=25
+g_cool=20 --grab cooldown
 p1={
 	p=0,
 	x = 40, --body center
@@ -119,13 +126,16 @@ p1={
 	oag=false,
 	grapple=false,
 	stun=0,
+	lastb={},
+	dash_cool=0,
+	gstate="ready",
 	update=function(self)
 		--collission
 		if self.p==0 then
 			local iax, iay=point_on_circle(self.x, self.y, 10, .12 - self.br)
 			local oax, oay= point_on_circle(self.x, self.y, 7,.39 - self.br)
 			a = b
-			self.oarmhitxy[1],self.oarmhitxy[2]=point_on_circle(oax, oay, 24,.78-self.oar)
+			self.oarmhitxy[1],self.oarmhitxy[2]=point_on_circle(oax, oay, 28,.78-self.oar)
 			self.iarmhitxy[1],self.iarmhitxy[2]=point_on_circle(iax, iay, 17,.82-self.iar)
 		elseif self.f then
 			local iax, iay=point_on_circle(self.x-37, self.y, 10, .12 - self.br)
@@ -178,186 +188,195 @@ p1={
 		end
 		--movement
 		if self.canact then
+			if btnp(➡️,self.p) then
+					if self.lastb[1]=="➡️" 
+					and self.dash_cool==0 
+					and time()-self.lastb[2]<=0.2
+					and time()-self.lastb[2]>0.1 then
+						self.dx=dash
+						self.dash_cool=dash_cool
+					end
+					self.lastb={"➡️",time()}
+			elseif btnp(⬅️,self.p) then
+				if self.lastb[1]=="⬅️" 
+					and self.dash_cool==0
+					and time()-self.lastb[2]<=0.2
+					and time()-self.lastb[2]>0.1 then
+						self.dx=-dash
+						self.dash_cool=dash_cool
+					end
+					self.lastb={"⬅️",time()}
+			end
+			if self.dash_cool>0 then self.dash_cool-=1 end
 			if btn(➡️, self.p) then
-				--if self.p==0 or (self.p==1 and self.canmove) then
-					self.dx=1
-					self.move+=1
-				--end
-				--self.r-=.005
+				if self.dx==0 then self.dx=3 end
+				self.move+=1
 			elseif btn(⬅️, self.p) then
-				--if self.p==1 or (self.p==0 and self.canmove) then
-					self.dx=-1
-					self.move+=1
-				--end
+				if self.dx==0 then self.dx=-3 end
+				self.move+=1
 				--self.r+=.005
 			else
-				self.dx=0
 				self.move=0
 			end
 		end
 		
 		if self.move==20 then self.move = 0 end
+
+		--grab
+		if self.canact then
+			if btnp(❎,self.p) 
+			and btnp(🅾️,self.p) 
+			and self.gstate=="ready"
+			then
+				self.gstate="grab"
+				self.dx=grab_dash
+				self.canact=false
+			end
+		end
+		
 		--outer arm
 		if self.canact then
-			if btn(❎,self.p) then
+			if btnp(❎,self.p)
+			and self.gstate=="ready" then
 				self.ocount+=1
-				if self.oar>-0.18 then
-					if self.oag then
-						self.oar=self.oar
-					else
-						self.oag=false
-						if self.oslap=="ready" then
-							self.oar-=0.01
-						end
-					end
-			end
-			if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
-					self.oag=true
-			end
-			else
-				self.oag=false
-				if self.ocount<10 and self.ocount!=0 then
-					if self.oslap=="ready" then
-						self.oslap="slap"
-						self.stam-=9
-					end
-				end	
-			
-			if self.oslap=="slap" then
-				if self.oar>-0.18 then
-					self.oar-=0.1
-					if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
-						if not other(self.p).block then
-							other(self.p).prc_target+=flr(10*(self.oar/-0.19))
-						else
-							self.stun+=block_stun
-							self.shake+=1
-						end
-						other(self.p).shake+=abs(self.oar)*5
-						other(self.p).knockback+=(abs(self.oar)*300)*(other(self.p).prc/100)
-						self.ocount=0
-						self.oslap="not ready"
-					end
-				else
-					self.oslap="not ready"
-					self.ocount=0
+				if self.oslap=="ready" then
+					self.oslap="slap"
 				end
 			end
-			end
 		end
-		if self.oar>0 then 
-					self.ocount=0
-					self.oslap="ready"
-		end
-		if (not btn(❎,self.p) or self.oslap=="not ready") and self.oar<0 and self.stun<=0 then
-			self.oar+=0.02
-		end
+		
+		--inner arm
 		if self.canact then
-			if btn(🅾️,self.p) then
-				self.icount+=1
-				if self.iar>-0.18 and self.islap=="ready" then
-						if self.iag then
-							self.iar=self.iar
-						else	
-							self.iag=false
-							self.iar-=0.01
-						end
-				end
-				if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
-							self.iag=true
-				end 
-			else
-				self.iag=false
-				if self.icount<10 and self.icount!=0 then
-					if self.islap=="ready" then
-						self.islap="slap"
-						self.stam-=9
-					end
-				end	
-			
-			if self.islap=="slap" then
-				if self.iar>-0.18 then
-					self.iar-=0.1
-					if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
-						if not other(self.p).block then
-							other(self.p).prc_target+=flr(10*(self.iar/-0.19))
-						else
-							self.stun+=block_stun
-							self.shake+=1
-						end
-						other(self.p).shake+=abs(self.iar)*5
-						other(self.p).knockback+=(abs(self.iar)*300)*(other(self.p).prc/100)
-						self.icount=0
-						self.islap="not ready"
-					end
-				else
-					self.islap="not ready"
-					self.icount=0
-				end
-			else
+		if btnp(🅾️,self.p) 
+		and self.gstate=="ready" then
+			self.icount+=1
+			if self.islap=="ready" then
+					self.islap="slap"
 			end
 		end
 	end
+	
+	
+		if self.gstate=="grab" then
+			self.canact=false
+			self.canmove=false
+			if self.oar>-0.19 then
+				self.oar-=0.05
+			end
+			if self.iar>-0.19 then
+				self.iar-=0.05
+			end
+			if self.dx<1 then
+				self.gstate="not ready"
+				self.gcool=g_cool
+			end
+		elseif self.gstate=="not ready" then
+			self.gcool-=1
+			if self.gcool<=0 then
+				self.gstate="ready"
+				self.canact=true
+				self.canmove=true
+			end
+		end
+		
+		
+		if self.oslap=="slap" then
+			if self.oar>-0.19 then
+				self.oar-=0.1
+				if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
+					if not other(self.p).block then
+						other(self.p).prc_target+=flr(10*(self.oar/-0.19))
+					else
+						self.stun+=block_stun
+						self.shake+=1
+					end
+					other(self.p).shake+=abs(self.oar)*5
+					other(self.p).knockback+=(abs(self.oar)*300)*(other(self.p).prc/100)
+					self.ocount=0
+					self.oslap="not ready"
+				end
+			else
+				self.oslap="not ready"
+				self.ocount=0
+			end
+	end
+	if self.oar>0 then 
+				self.ocount=0
+				self.oslap="ready"
+	end
+	if (not btn(❎,self.p) 
+	or self.oslap=="not ready" 
+	or self.gstate=="not ready") 
+	and self.gstate!="grab"
+	and (self.oar<0 
+	and self.stun<=0)  then
+		self.oar+=0.02
+	end
+			
+	if self.islap=="slap" then
+		if self.iar>-0.19 then
+			self.iar-=0.1
+			if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
+				if not other(self.p).block then
+					other(self.p).prc_target+=flr(10*(self.iar/-0.19))
+				else
+					self.stun+=block_stun
+					self.shake+=1
+				end
+				other(self.p).shake+=abs(self.iar)*5
+				other(self.p).knockback+=(abs(self.iar)*300)*(other(self.p).prc/100)
+				self.icount=0
+				self.islap="not ready"
+			end
+		else
+			self.islap="not ready"
+			self.icount=0
+		end
+	end
+	
 	if self.iar>0 then 
 		self.icount=0
 		self.islap="ready"
 	end
-	if (not btn(🅾️,self.p) or self.islap=="not ready") and self.iar<0 and self.stun<=0 then
+	
+	if (not btn(🅾️,self.p) 
+	or self.islap=="not ready"
+	or self.gstate=="not ready")
+	and self.gstate!="grab" 
+	and self.iar<0 
+	and self.stun<=0  then
 		self.iar+=0.02
 	end
-
-	--pushing
-		
-	if not self.bodycollide and not self.iag and not self.oag then
-		self.grapple=false
-	elseif self.bodycollide and not self.iag and not self.oag then
-		if (self.dx<=-1 and self.p==0) or (self.dx>=1 and self.p==1) then
-			--allow moving away
-			self.grapple=false
-			self.x+=self.dx/3
-		else
-			self.grapple=true
-		end
-	elseif self.iag or self.oag then
-		self.grapple=true
-	end
-	if not self.grapple and not other(self.p).grapple then
+	
+	
+	--★ main movement ★
+	if not self.bodycollide then
 		if self.knockback==0 then
-			self.x+=self.dx/3
-		else
-			if self.p==0 then
-				self.x-=self.knockback/20
-			else
-				self.x+=self.knockback/20
-			end
-			self.knockback=self.knockback*.6
-			if self.knockback<0.05 then
-				self.knockback=0
-			end
+			self.x+=self.dx/5
 		end
+	elseif self.bodycollide and is_retreat(self) then
+		self.x+=self.dx/5
+	end
+	--
+	
+	if self.p==0 then
+		self.x-=self.knockback/20
 	else
-		struggle()
+		self.x+=self.knockback/20
 	end
 	
-		
-		--stam
-		if btn(⬆️, self.p) then self.stam-=0.1 end
-		if btn(❎,self.p) or btn(🅾️,self.p) then self.stam-=0.1 end
-		if not btn(❎,self.p) and not btn(🅾️,self.p) then self.stam+=0.05 end
-		if not btn(⬇️,self.p) and not btn(⬆️,self.p) then self.stam+=0.05 end
-		if self.stam>100 then self.stam=100 end
-		if self.stam<0 then self.stam=0 end
-		if btn(⬇️,self.p) then self.stam+=1 end
-		--balance
-		if self.dx!=0 then
-			self.bal+=self.dx/10
-		else
-			if self.bal>50 then
-				self.bal=max(self.bal-0.2, 50)
-			elseif self.bal<50 then
-				self.bal=min(self.bal+0.2, 50)
-			end
-		end
+	self.knockback=self.knockback*.6
+	
+	if self.knockback<0.05 then
+		self.knockback=0
+	end
+
+	self.dx=self.dx*0.5
+	if self.dx<=0.49 then 
+		self.dx=0 
+	end
+	
+
 	end,
 }
 
@@ -386,6 +405,15 @@ function arm_hit(p, x, y)
 	end
 end
 
+function is_retreat(p)
+	if p.p==0 and p.dx<0 then
+		return true
+	end
+	if p.p==1 and p.dx>0 then
+		return true
+	end
+	return false
+end
 
 p2 = deepcopy(p1)
 
@@ -474,7 +502,7 @@ end
 -->8
 --bg/ui
 function draw_bg()
-	rectfill(-50,75,128+50,128,4)
+	rectfill(-100,75,128+100,128,4)
 	oval(3-40,80,124+40,115,7)
 	line(50,90,50,97)
 	line(77,90,77,97)
