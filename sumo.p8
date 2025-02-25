@@ -40,10 +40,8 @@ function _update()
 		elseif state=="match_start" then
 		p1.x=40
 		p2.x=110
-		p1.stam=100
-		p2.stam=100
-		p1.bal=50
-		p2.bal=50
+		p1:reset_wrestler()
+		p2:reset_wrestler()
 		state="play"
 		winner=" "
 	elseif state=="menu" or "reset" then
@@ -69,15 +67,12 @@ function _draw()
 		draw_wrestlers()
 		p1out=false
 		p2out=false
-		if p2.x>=127 then p2out=true end
-		if p1.x<=24 then p1out=true end
+		if p2.x>=163 then p2out=true end
+		if p1.x<=-12 then p1out=true end
 		--draw_debug()
 		draw_percent()
-		print(p1.x,camx+27,camy+20,7)
-		print(p2.x,camx+84,camy+20,7)
-		--print(p1.gstate,camx+10,10,7)
-		--pset(p1.x-1,p1.y+25,9)
-		--pset(p2.x-19,p2.y+25,9)
+		--print(p1.x,camx+27,camy+20,7)
+		--print(p2.x,camx+84,camy+20,7)
 	end
 end
 -->8
@@ -395,6 +390,15 @@ p1={
 			end
 		end
 	end,
+	reset_wrestler=function(self)
+		self.lastb={0,0}
+		self.knockback=0
+		self.dx=0
+		self.dash_cool=0
+		self.r=0
+		self.prc=0
+		self.prc_target=0
+	end
 }
 
 function deepcopy(orig)
