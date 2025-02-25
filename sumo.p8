@@ -29,11 +29,11 @@ function _update()
 	if state=="play" then
 		p1:update()
 		p2:update()
-		--if p1.x<=24 then
-			--winner="p2"
-		--elseif p2.x>=127 then
-			--winner="p1"
-		--end
+		if p1.x<=-12 then
+			winner="p2"
+		elseif p2.x>=163 then
+			winner="p1"
+		end
 		if winner!=" " then
 			state="reset"
 		end
@@ -73,6 +73,8 @@ function _draw()
 		if p1.x<=24 then p1out=true end
 		--draw_debug()
 		draw_percent()
+		print(p1.x,camx+27,camy+20,7)
+		print(p2.x,camx+84,camy+20,7)
 		--print(p1.gstate,camx+10,10,7)
 		--pset(p1.x-1,p1.y+25,9)
 		--pset(p2.x-19,p2.y+25,9)
@@ -523,6 +525,49 @@ function draw_bg()
 	line(77,90,77,97)
 end
 
+function draw_percent()
+	local p1xo=0
+	local p1yo=0
+	if p1.prc_target>0 then
+		p1.prc+=1
+		p1.prc_target-=1
+		p1xo=1-rnd(2)
+		p1yo=1-rnd(2)
+	end
+	
+	local p2xo=0
+	local p2yo=0
+	if p2.prc_target>0 then
+		p2.prc+=1
+		p2.prc_target-=1
+		p2xo=1-rnd(2)
+		p2yo=1-rnd(2)
+	end
+	print("\^t\^w"..p2.prc.."\^-t\^w%", camx+84+p2xo,camy+7+p2yo,7)
+	print("\^t\^w"..p1.prc.."\^-t\^w%", camx+27+p1xo,camy+7+p1yo,7)
+end
+
+function draw_menu()
+	cprint("press ❎ to start",50)
+end
+
+function draw_reset()
+	cprint(winner.." wins!", 50)
+	cprint("press ❎ to rematch", 60)
+end
+
+function cprint(s,y,c)
+	local c = c or 7
+	local x = camx+64-#s*2
+	print(s,x,y,7)
+end
+
+function update_camera()
+	local p1c=p1.x-1
+	local p2c=p2.x-21
+	camx=((p1c+p2c)/2)-62
+end
+
 function draw_debug()
 	bcx=p1.x
 	bcy=p1.y
@@ -577,48 +622,7 @@ function draw_debug()
 	pset(p2.x-24,p2.y,9)
 end
 
-function draw_percent()
-	local p1xo=0
-	local p1yo=0
-	if p1.prc_target>0 then
-		p1.prc+=1
-		p1.prc_target-=1
-		p1xo=1-rnd(2)
-		p1yo=1-rnd(2)
-	end
-	
-	local p2xo=0
-	local p2yo=0
-	if p2.prc_target>0 then
-		p2.prc+=1
-		p2.prc_target-=1
-		p2xo=1-rnd(2)
-		p2yo=1-rnd(2)
-	end
-	print("\^t\^w"..p2.prc.."\^-t\^w%", camx+84+p2xo,camy+7+p2yo,7)
-	print("\^t\^w"..p1.prc.."\^-t\^w%", camx+27+p1xo,camy+7+p1yo,7)
-end
 
-function draw_menu()
-	cprint("press ❎ to start",50)
-end
-
-function draw_reset()
-	cprint(winner.." wins!", 50)
-	cprint("press ❎ to rematch", 60)
-end
-
-function cprint(s,y,c)
-	local c = c or 7
-	local x = 64-#s*2
-	print(s,x,y,7)
-end
-
-function update_camera()
-	local p1c=p1.x-1
-	local p2c=p2.x-21
-	camx=((p1c+p2c)/2)-62
-end
 -->8
 --draw wrestlers
 function calculate_legs(p)
@@ -723,39 +727,6 @@ function draw_wrestlers()
 	if p2.shake<0.05 then
 		p2.shake=0
 	end
-end
--->8
---grappling
-function struggle()
-	local p1push=0
-	local p2push=0
-	
-	if p1.dx>0 then
-		if p1.bodycollide then p1push+=10 end	
-	end
-	if p1.iag then p1push+=10 end
-	if p1.oag then p1push+=10	end
-	p1push+=p1.stam
-	
-	if p2.dx<0 then
-		if p2.bodycollide then p2push+=10 end	
-	end
-	if p2.iag then p2push+=10 end
-	if p2.oag then p2push+=10	end
-	p2push+=p2.stam
-	
-	if p1push>p2push then
-		local v = ((p1push-p2push)/100)*30
-		if p1.dx==p2.dx*-1 then v/=2 end
-		p1.x+=(p1.dx)/(30-v)
-		p2.x+=(p1.dx)/(30-v)
-	elseif p2push>p1push then
-		local v = ((p2push-p1push)/100)*5
-		if p2.dx==p1.dx*-1 then v/=2 end
-		p1.x+=(p2.dx)/(20-v)
-		p2.x+=(p2.dx)/(20-v)
-	end
-	
 end
 __gfx__
 00000000beeebbbbbbbbbbbbbbbbbbbbbeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb888bbbbbb8888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
