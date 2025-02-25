@@ -73,7 +73,7 @@ function _draw()
 		if p1.x<=24 then p1out=true end
 		--draw_debug()
 		draw_percent()
-		print(p1.gstate,camx+10,10,7)
+		--print(p1.gstate,camx+10,10,7)
 		--pset(p1.x-1,p1.y+25,9)
 		--pset(p2.x-19,p2.y+25,9)
 	end
@@ -131,6 +131,197 @@ p1={
 	gstate="ready",
 	update=function(self)
 		--collission
+		self:handle_colission()
+		
+		if self.islap=="ready" 
+					and self.oslap=="ready" 
+					and self.iar>-0.03
+					and self.oar>-0.03
+		then
+			self.canblock=true
+		else
+			self.canblock=false
+		end
+		
+		self:handle_block()
+		
+		if self.recover or self.block or self.knockback>0 then
+			self.canact=false
+			self.dx=0
+		elseif self.stun>0 then
+			self.stun-=1
+			self.canact=false
+		else
+			self.canact=true
+		end
+		
+		self:handle_move_input()
+		
+		self:handle_grab()
+		
+		self:handle_slaps()
+	
+		self:lower_arms()
+	
+		self:handle_movement()
+	
+		self:handle_knockback()
+	end,
+	
+	handle_grab=function(self)
+		if self.canact then
+			if btnp(❎,self.p) 
+			and btnp(🅾️,self.p) 
+			and self.gstate=="ready"
+			then
+				self.gstate="grab"
+				self.dx=grab_dash
+				self.canact=false
+			end
+		end
+		if self.gstate=="grab" then
+			self.canact=false
+			self.canmove=false
+			if self.oar>-0.19 then
+				self.oar-=0.05
+			end
+			if self.iar>-0.19 then
+				self.iar-=0.05
+			end
+			if self.dx<1 then
+				self.gstate="not ready"
+				self.gcool=g_cool
+			end
+		elseif self.gstate=="not ready" then
+			self.gcool-=1
+			if self.gcool<=0 then
+				self.gstate="ready"
+				self.canact=true
+				self.canmove=true
+			end
+		end
+	end,
+	
+	handle_knockback=function(self)
+		if self.p==0 then
+			self.x-=self.knockback/20
+		else
+			self.x+=self.knockback/20
+		end
+	
+		self.knockback=self.knockback*.6
+	
+		if self.knockback<0.05 then
+			self.knockback=0
+		end
+	end,
+	
+	handle_movement=function(self)
+		if not self.bodycollide then
+			if self.knockback==0 then
+				self.x+=self.dx/5
+			end
+		elseif self.bodycollide and is_retreat(self) then
+			self.x+=self.dx/5
+		end
+	
+		self.dx=self.dx*0.5
+		if self.dx<=0.49 then 
+			self.dx=0 
+		end
+	end,
+	
+	handle_slaps=function(self)
+		if self.canact then
+			if btnp(🅾️,self.p) 
+			and self.gstate=="ready" then
+				self.icount+=1
+				if self.islap=="ready" then
+					self.islap="slap"
+				end
+			end
+		end
+		if self.canact then
+			if btnp(❎,self.p)
+			and self.gstate=="ready" then
+				self.ocount+=1
+				if self.oslap=="ready" then
+					self.oslap="slap"
+				end
+			end
+		end
+		if self.oslap=="slap" then
+				if self.oar>-0.19 then
+					self.oar-=0.1
+					if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
+						if not other(self.p).block then
+							other(self.p).prc_target+=flr(10*(self.oar/-0.19))
+						else
+							self.stun+=block_stun
+							self.shake+=1
+						end
+						other(self.p).shake+=abs(self.oar)*5
+						other(self.p).knockback+=(abs(self.oar)*300)*(other(self.p).prc/100)
+						self.ocount=0
+						self.oslap="not ready"
+					end
+				else
+					self.oslap="not ready"
+					self.ocount=0
+				end
+		end
+		if self.oar>0 then 
+					self.ocount=0
+					self.oslap="ready"
+		end
+				
+		if self.islap=="slap" then
+			if self.iar>-0.19 then
+				self.iar-=0.1
+				if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
+					if not other(self.p).block then
+						other(self.p).prc_target+=flr(10*(self.iar/-0.19))
+					else
+						self.stun+=block_stun
+						self.shake+=1
+					end
+					other(self.p).shake+=abs(self.iar)*5
+					other(self.p).knockback+=(abs(self.iar)*300)*(other(self.p).prc/100)
+					self.icount=0
+					self.islap="not ready"
+				end
+			else
+				self.islap="not ready"
+				self.icount=0
+			end
+		end
+		
+		if self.iar>0 then 
+			self.icount=0
+			self.islap="ready"
+		end
+	end,
+	
+	lower_arms=function(self)
+		if (not btn(🅾️,self.p) 
+		or self.islap=="not ready"
+		or self.gstate=="not ready")
+		and self.gstate!="grab" 
+		and self.iar<0 
+		and self.stun<=0  then
+			self.iar+=0.02
+		end
+		if (not btn(❎,self.p) 
+		or self.oslap=="not ready" 
+		or self.gstate=="not ready") 
+		and self.gstate!="grab"
+		and (self.oar<0 
+		and self.stun<=0)  then
+			self.oar+=0.02
+		end
+	end,
+	
+	handle_colission=function(self)
 		if self.p==0 then
 			local iax, iay=point_on_circle(self.x, self.y, 10, .12 - self.br)
 			local oax, oay= point_on_circle(self.x, self.y, 7,.39 - self.br)
@@ -149,44 +340,9 @@ p1={
 		else
 			self.bodycollide = false
 		end
-		if self.islap=="ready" 
-					and self.oslap=="ready" 
-					and self.iar>-0.03
-					and self.oar>-0.03
-		then
-			self.canblock=true
-		else
-			self.canblock=false
-		end
-		--block/recover
-		if btn(⬆️, self.p) and self.canblock then
-			self.block=true
-			if self.br>=-0.024 then
-				self.br-=.011
-			end
-		end
-		if not btn(⬇️,self.p) then
-			self.recover=false
-			if self.br>0 then
-				self.br-=.009
-			end
-		end
-		if not btn(⬆️,self.p) then
-			self.block=false
-			if self.br<0 then
-				self.br+=.009
-			end
-		end
-		if self.recover or self.block or self.knockback>0 then
-			self.canact=false
-			self.dx=0
-		elseif self.stun>0 then
-			self.stun-=1
-			self.canact=false
-		else
-			self.canact=true
-		end
-		--movement
+	end,
+	
+	handle_move_input=function(self)
 		if self.canact then
 			if btnp(➡️,self.p) then
 					if self.lastb[1]=="➡️" 
@@ -221,162 +377,21 @@ p1={
 		end
 		
 		if self.move==20 then self.move = 0 end
-
-		--grab
-		if self.canact then
-			if btnp(❎,self.p) 
-			and btnp(🅾️,self.p) 
-			and self.gstate=="ready"
-			then
-				self.gstate="grab"
-				self.dx=grab_dash
-				self.canact=false
+	end,
+	handle_block=function(self)
+		if btn(⬆️, self.p) and self.canblock then
+			self.block=true
+			if self.br>=-0.024 then
+				self.br-=.011
 			end
 		end
 		
-		--outer arm
-		if self.canact then
-			if btnp(❎,self.p)
-			and self.gstate=="ready" then
-				self.ocount+=1
-				if self.oslap=="ready" then
-					self.oslap="slap"
-				end
+		if not btn(⬆️,self.p) then
+			self.block=false
+			if self.br<0 then
+				self.br+=.009
 			end
 		end
-		
-		--inner arm
-		if self.canact then
-		if btnp(🅾️,self.p) 
-		and self.gstate=="ready" then
-			self.icount+=1
-			if self.islap=="ready" then
-					self.islap="slap"
-			end
-		end
-	end
-	
-	
-		if self.gstate=="grab" then
-			self.canact=false
-			self.canmove=false
-			if self.oar>-0.19 then
-				self.oar-=0.05
-			end
-			if self.iar>-0.19 then
-				self.iar-=0.05
-			end
-			if self.dx<1 then
-				self.gstate="not ready"
-				self.gcool=g_cool
-			end
-		elseif self.gstate=="not ready" then
-			self.gcool-=1
-			if self.gcool<=0 then
-				self.gstate="ready"
-				self.canact=true
-				self.canmove=true
-			end
-		end
-		
-		
-		if self.oslap=="slap" then
-			if self.oar>-0.19 then
-				self.oar-=0.1
-				if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
-					if not other(self.p).block then
-						other(self.p).prc_target+=flr(10*(self.oar/-0.19))
-					else
-						self.stun+=block_stun
-						self.shake+=1
-					end
-					other(self.p).shake+=abs(self.oar)*5
-					other(self.p).knockback+=(abs(self.oar)*300)*(other(self.p).prc/100)
-					self.ocount=0
-					self.oslap="not ready"
-				end
-			else
-				self.oslap="not ready"
-				self.ocount=0
-			end
-	end
-	if self.oar>0 then 
-				self.ocount=0
-				self.oslap="ready"
-	end
-	if (not btn(❎,self.p) 
-	or self.oslap=="not ready" 
-	or self.gstate=="not ready") 
-	and self.gstate!="grab"
-	and (self.oar<0 
-	and self.stun<=0)  then
-		self.oar+=0.02
-	end
-			
-	if self.islap=="slap" then
-		if self.iar>-0.19 then
-			self.iar-=0.1
-			if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
-				if not other(self.p).block then
-					other(self.p).prc_target+=flr(10*(self.iar/-0.19))
-				else
-					self.stun+=block_stun
-					self.shake+=1
-				end
-				other(self.p).shake+=abs(self.iar)*5
-				other(self.p).knockback+=(abs(self.iar)*300)*(other(self.p).prc/100)
-				self.icount=0
-				self.islap="not ready"
-			end
-		else
-			self.islap="not ready"
-			self.icount=0
-		end
-	end
-	
-	if self.iar>0 then 
-		self.icount=0
-		self.islap="ready"
-	end
-	
-	if (not btn(🅾️,self.p) 
-	or self.islap=="not ready"
-	or self.gstate=="not ready")
-	and self.gstate!="grab" 
-	and self.iar<0 
-	and self.stun<=0  then
-		self.iar+=0.02
-	end
-	
-	
-	--★ main movement ★
-	if not self.bodycollide then
-		if self.knockback==0 then
-			self.x+=self.dx/5
-		end
-	elseif self.bodycollide and is_retreat(self) then
-		self.x+=self.dx/5
-	end
-	--
-	
-	if self.p==0 then
-		self.x-=self.knockback/20
-	else
-		self.x+=self.knockback/20
-	end
-	
-	self.knockback=self.knockback*.6
-	
-	if self.knockback<0.05 then
-		self.knockback=0
-	end
-
-	self.dx=self.dx*0.5
-	if self.dx<=0.49 then 
-		self.dx=0 
-	end
-	
-
 	end,
 }
 
