@@ -71,37 +71,47 @@ function _draw()
 		if p1.x<=-12 then p1out=true end
 		--draw_debug()
 		draw_percent()
-		--print(p1.x,camx+27,camy+20,7)
-		--print(p2.x,camx+84,camy+20,7)
+		--print(tostr(p1.pummel)..p1.gcount,camx+27,camy+20,7)
+		--print(p2.gstate..p2.gcount,camx+84,camy+20,7)
 	end
 end
 -->8
 --rikishi
 block_stun=10
 dash=50
-grab_dash=20
+grab_dash=25
 dash_cool=25
-g_cool=20 --grab cooldown
+gcount=75 --length of grapple
+g_cool=60 --grab cooldown
+gdist=40 --grab distance
+--% added to prc when pushing
+grapple_push=30
 p1={
 	p=0,
 	x = 40, --body center
 	y=71, --body center
 	shake=0,
-	knockback=0,
+	
 	recover=false,
 	block=false,
+	
 	canact=true,
 	canblock=true,
+	
 	dx=0,
 	mx=0,
-	f=false,
+	move=0,
+	knockback=0,
+	
 	r=0, --whole body rotation
-	br=0,
+	br=0, --torso
+	oar=0, --outer arm
+	iar=0, --inner arm
+	
 	prc=0,
 	prc_target=0,
-	oar=0,
-	iar=0,
-	move=0,
+	
+	f=false, --sprite flip
 	p2oao=0,
 	p2olo=0,
 	p2iao=0,
@@ -110,8 +120,6 @@ p1={
 	bodymapy=0,
 	iarmhitxy={0,0},
 	oarmhitxy={0,0},
-	stam=100,
-	bal=50,
 	bodycollide=false,
 	ibuff=false,
 	obuff=false,
@@ -122,10 +130,12 @@ p1={
 	iag=false,
 	oag=false,
 	grapple=false,
+	gcount=0,
 	stun=0,
 	lastb={},
 	dash_cool=0,
 	gstate="ready",
+	pummel=false,
 	update=function(self)
 		--collission
 		self:handle_colission()
@@ -135,7 +145,10 @@ p1={
 					and self.iar>-0.03
 					and self.oar>-0.03
 		then
-			self.canblock=true
+			if self.gstate!="grapple" 
+			and self.gstate!="grappled" then
+				self.canblock=true
+			end
 		else
 			self.canblock=false
 		end
@@ -166,40 +179,107 @@ p1={
 	end,
 	
 	handle_grab=function(self)
+		local grapple_space=38
 		if self.canact then
 			if btnp(❎,self.p) 
 			and btnp(🅾️,self.p) 
 			and self.gstate=="ready"
 			then
 				self.gstate="grab"
-				self.dx=grab_dash
+				if self.p==0 then
+					self.dx=grab_dash
+				else
+					self.dx=-grab_dash
+				end
 				self.canact=false
 			end
 		end
 		if self.gstate=="grab" then
 			self.canact=false
 			self.canmove=false
-			if self.oar>-0.19 then
+			if self.oar>-0.10 then
 				self.oar-=0.05
 			end
 			if self.iar>-0.19 then
 				self.iar-=0.05
 			end
-			if self.dx<1 then
+			if abs(self.x-other(self.p).x)<=gdist then
+				self.gstate="grapple"
+				self.gcount=gcount
+				other(self.p).gstate="grappled"
+			end
+			if abs(self.dx)<1 then
 				self.gstate="not ready"
 				self.gcool=g_cool
 			end
 		elseif self.gstate=="not ready" then
 			self.gcool-=1
-			if self.gcool<=0 then
+			if self.gcount<=0 then
 				self.gstate="ready"
 				self.canact=true
 				self.canmove=true
 			end
+		elseif self.gstate=="grappled" then
+			self.canact=false
+			self.canmove=false
+			self.canblock=false
+			if btnp(❎,self.p) or btnp(🅾️,self.p) then
+				other(self.p).gcount-=flr(rnd(3))
+			end
+			if abs(self.x-other(self.p).x)>grapple_space then
+				if self.p==0 then 
+					self.x+=2 
+				else
+					self.x-=2
+				end
+			else
+				if self.p==0 then
+					self.x=other(self.p).x-grapple_space
+				else
+					self.x=other(self.p).x+grapple_space
+				end
+			end
+		elseif self.gstate=="grapple" then
+				self.gcount-=1
+				self.dx=self.dx*((other(self.p).prc+grapple_push)/100)
+				if self.gcount<gcount-10 and (btnp(❎,self.p) or btnp(🅾️,self.p)) then
+					self.pummel=true
+					self.gcount-=5
+					other(self.p).prc+=10
+					other(self.p).shake+=2
+				end
+				
+				if self.pummel then
+					if self.oar>-0.20 then
+						self.oar-=0.05
+					else
+						self.pummel=false
+					end
+				else
+					if self.oar<-0.12 then self.oar+=0.01 end
+				end
+				if self.iar>-0.16 then
+					self.iar-=0.03
+				end
+				if self.oar>-0.10 then
+					self.oar-=0.01
+				end
+				if self.gcount<=0 then
+					self.gcool=g_cool
+					self.gstate="not ready"
+					other(self.p).gstate="not ready"
+					other(self.p).gcool=g_cool
+					self.knockback=250
+				end
 		end
 	end,
 	
 	handle_knockback=function(self)
+		if self.knockback>10 then
+			self.br=-0.02
+		else
+			self.br=0
+		end
 		if self.p==0 then
 			self.x-=self.knockback/20
 		else
@@ -214,16 +294,16 @@ p1={
 	end,
 	
 	handle_movement=function(self)
-		if not self.bodycollide then
+		if not self.bodycollide or self.gstate=="grapple" then
 			if self.knockback==0 then
 				self.x+=self.dx/5
 			end
-		elseif self.bodycollide and is_retreat(self) then
+		elseif self.bodycollide and (is_retreat(self) or self.knockback>0) then
 			self.x+=self.dx/5
 		end
 	
 		self.dx=self.dx*0.5
-		if self.dx<=0.49 then 
+		if abs(self.dx)<=0.49 then 
 			self.dx=0 
 		end
 	end,
@@ -304,6 +384,8 @@ p1={
 		or self.islap=="not ready"
 		or self.gstate=="not ready")
 		and self.gstate!="grab" 
+		and self.gstate!="grapple"
+		and self.gstate!="grappled"
 		and self.iar<0 
 		and self.stun<=0  then
 			self.iar+=0.02
@@ -312,6 +394,8 @@ p1={
 		or self.oslap=="not ready" 
 		or self.gstate=="not ready") 
 		and self.gstate!="grab"
+		and self.gstate!="grapple"
+		and self.gstate!="grappled"
 		and (self.oar<0 
 		and self.stun<=0)  then
 			self.oar+=0.02
@@ -398,6 +482,10 @@ p1={
 		self.r=0
 		self.prc=0
 		self.prc_target=0
+		self.iar=0
+		self.oar=0
+		self.br=0
+		self.gstate="ready"
 	end
 }
 
@@ -450,6 +538,7 @@ p2.iarmhitxy={0,0}
 p2.oarmhitxy={0,0}
 p2.grapple=false
 p2.shake=0
+p2.gstate="ready"
 
 -->8
 --helpers
@@ -686,8 +775,7 @@ function draw_wrestlers()
 	--arm
 	pd_rotate(p1iax-1,p1iay,p1.iar-p1.r,32,3,5,p1.f)
 	--body
-	local p1bx, p1by = point_on_circle(p1cx+(p1.br*160),p1cy,45,.285+p1.r)
-	pd_rotate(p1bx,p1by,p1.br-p1.r,p1.bodymapx,p1.bodymapy,7.8,p1.f)
+
 	camera(camx, camy)
 	pal(12,12,0)
 	
@@ -705,6 +793,8 @@ function draw_wrestlers()
 	pd_rotate(p2bx,p2by,p2.br+p2.r,p2.bodymapx,p2.bodymapy,7.8,p2.f)
 	pal(14,14,0)
 --p2 outer
+		local p1bx, p1by = point_on_circle(p1cx+(p1.br*160),p1cy,45,.285+p1.r)
+	pd_rotate(p1bx,p1by,p1.br-p1.r,p1.bodymapx,p1.bodymapy,7.8,p1.f)
 	local p2olx,p2oly = point_on_circle(p2cx, p2cy, 27, .11+p2.r)
 	pd_rotate(p2olx+p2ol, p2oly,0+p2.r,15,6,7, true)
 	local p2oax, p2oay = point_on_circle(p2cx, p2cy, 36,.22 + (p2.br/2)+p2.r)
