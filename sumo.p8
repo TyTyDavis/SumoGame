@@ -19,6 +19,8 @@ function _init()
 	camx=2
 	camy=0
 	camt=0
+	
+	reset_timer=0
 	--set btnp repeat to never
 	poke(0x5f5c, 255)
 	poke(0x5f5d, 255)
@@ -29,13 +31,9 @@ function _update()
 	if state=="play" then
 		p1:update()
 		p2:update()
-		if p1.x<=-12 then
-			winner="p2"
-		elseif p2.x>=163 then
-			winner="p1"
-		end
 		if winner!=" " then
 			state="reset"
+			reset_timer=0
 		end
 		elseif state=="match_start" then
 		p1.x=40
@@ -45,9 +43,12 @@ function _update()
 		state="play"
 		winner=" "
 	elseif state=="menu" or "reset" then
-		if btn(❎) then
-			state="match_start"
+		if state=="menu" or reset_timer>60 then
+			if btn(❎) then
+				state="match_start"
+			end
 		end
+		reset_timer+=1
 	end
 end
 
@@ -71,8 +72,8 @@ function _draw()
 		if p1.x<=-12 then p1out=true end
 		--draw_debug()
 		draw_percent()
-		--print(tostr(p1.pummel)..p1.gcount,camx+27,camy+20,7)
-		--print(p2.gstate..p2.gcount,camx+84,camy+20,7)
+		print(p1.x,camx+27,camy+20,7)
+		print(p2.x,camx+84,camy+20,7)
 	end
 end
 -->8
@@ -81,7 +82,8 @@ block_stun=10
 dash=50
 grab_dash=25
 dash_cool=25
-gcount=75 --length of grapple
+gcount=1000
+--gcount=75 --length of grapple
 g_cool=60 --grab cooldown
 gdist=40 --grab distance
 --% added to prc when pushing
@@ -176,6 +178,8 @@ p1={
 		self:handle_movement()
 	
 		self:handle_knockback()
+		
+		self:handle_topple()
 	end,
 	
 	handle_grab=function(self)
@@ -281,9 +285,17 @@ p1={
 			self.br=0
 		end
 		if self.p==0 then
-			self.x-=self.knockback/20
+			if self.x-self.knockback/20>-10 then
+				self.x-=self.knockback/20
+			else
+				if self.r<0.08 then self.r+=0.01*(self.knockback/100) end
+			end
 		else
-			self.x+=self.knockback/20
+			if self.x+self.knockback/20<162 then
+				self.x+=self.knockback/20
+			else
+				if self.r>-0.08 then self.r-=0.01*(self.knockback/100) end
+			end
 		end
 	
 		self.knockback=self.knockback*.6
@@ -291,14 +303,19 @@ p1={
 		if self.knockback<0.05 then
 			self.knockback=0
 		end
+		if self.knockback<=0 then
+			if self.r<0 then self.r+=0.01 end
+			if self.r>0 then self.r-=0.01 end
+			if abs(self.r)<=0.04 then self.r=0 end
+		end
 	end,
 	
 	handle_movement=function(self)
-		if not self.bodycollide or self.gstate=="grapple" then
+		if not self.bodycollide or (self.gstate=="grapple" and not at_ledge(other(self.p))) then
 			if self.knockback==0 then
 				self.x+=self.dx/5
 			end
-		elseif self.bodycollide and (is_retreat(self) or self.knockback>0) then
+		elseif self.bodycollide and self.gstate!="grappled" and (is_retreat(self) or self.knockback>0) then
 			self.x+=self.dx/5
 		end
 	
@@ -474,6 +491,21 @@ p1={
 			end
 		end
 	end,
+	handle_topple=function(self)
+		if self.p==0 then
+			if self.r>0.08 and self.r<0.20 then
+				self.r+=0.02
+			elseif self.r>0.20 then
+				winner="p1"
+			end
+		else
+			if self.r<-0.08 and self.r>-0.20 then
+				self.r-=0.02
+			elseif self.r<-0.20 then
+				winner="p2"
+			end
+		end
+	end,
 	reset_wrestler=function(self)
 		self.lastb={0,0}
 		self.knockback=0
@@ -503,6 +535,16 @@ function other(p)
 	else
 		return p1
 	end
+end
+
+function at_ledge(p)
+	if p==0 and p1.x<=-9 then
+		return true
+	end
+	if p==1 and p2.x>=161 then
+		return true
+	end
+	return false
 end
 
 function arm_hit(p, x, y)
@@ -646,7 +688,9 @@ end
 
 function draw_reset()
 	cprint(winner.." wins!", 50)
-	cprint("press ❎ to rematch", 60)
+	if reset_timer>60 then
+		cprint("press ❎ to rematch", 60)
+	end
 end
 
 function cprint(s,y,c)
