@@ -559,6 +559,8 @@ p1={
 		self.oar=0
 		self.br=0
 		self.gstate="ready"
+		self.islap="ready"
+		self.oslap="ready"
 	end
 }
 
