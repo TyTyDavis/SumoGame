@@ -13,7 +13,7 @@ function _init()
 	palt(11,true)
 	--pal(12,14,1)
 	--pal(13,8,1)
-	state="play"
+	state="reset"
 	winner=" "
 	blinkframe=0
 	camx=2
@@ -72,8 +72,8 @@ function _draw()
 		if p1.x<=-12 then p1out=true end
 		--draw_debug()
 		draw_percent()
-		--print(p1.gstate,camx+27,camy+20,7)
-		--print(tostr(at_ledge(1)),camx+84,camy+20,7)
+		--print(p1.bodycollide,camx+27,camy+20,7)
+		--print(p2.br,camx+84,camy+20,7)
 	end
 end
 -->8
@@ -82,8 +82,8 @@ block_stun=10
 dash=50
 grab_dash=25
 dash_cool=25
-gcount=1000
---gcount=75 --length of grapple
+--gcount=1000
+gcount=75 --length of grapple
 g_cool=60 --grab cooldown
 gdist=40 --grab distance
 --% added to prc when pushing
@@ -212,6 +212,7 @@ p1={
 				self.gstate="grapple"
 				self.gcount=gcount
 				other(self.p).gstate="grappled"
+				sfx(60)
 			end
 			if abs(self.dx)<1 and self.gstate=="grab" then
 				self.gstate="not ready"
@@ -228,13 +229,14 @@ p1={
 			self.canact=false
 			self.canmove=false
 			self.canblock=false
+			self.bodycollide=false
 			if btnp(❎,self.p) 
 			or btnp(🅾️,self.p)
 			or btnp(⬅️,self.p)
 			or btnp(➡️,self.p) then
 				other(self.p).gcount-=flr(rnd(3))
 			end
-			if abs(self.x-other(self.p).x)>grapple_space then
+			if abs(self.x-other(self.p).x)>grapple_space+1 then
 				if self.p==0 then 
 					self.x+=2 
 				else
@@ -258,9 +260,8 @@ p1={
 					other(self.p).prc+=10
 					other(self.p).shake+=2
 				end
-				--★
 				if at_ledge(other(self.p).p) then
-					local pushing=true
+					local pushing=false
 					if self.p==0 and self.dx>0 then pushing=true end
 					if self.p==1 and self.dx<0 then pushing=true end
 					if pushing then
@@ -340,7 +341,7 @@ p1={
 			if self.knockback==0 then
 				self.x+=self.dx/5
 			end
-		elseif self.bodycollide and self.gstate!="grappled" and self.gstate!="grapple" and (is_retreat(self) or self.knockback>0) then
+		elseif self.bodycollide and self.gstate!="grappled" and (is_retreat(self) or self.knockback>0) then
 			self.x+=self.dx/5
 		end
 	
@@ -523,13 +524,15 @@ p1={
 			if self.r>0.08 and self.r<0.20 then
 				self.r+=0.02
 			elseif self.r>0.20 then
-				winner="p1"
+				sfx(62)
+				winner="p2"
 			end
 		else
 			if self.r<-0.08 and self.r>-0.20 then
 				self.r-=0.02
 			elseif self.r<-0.20 then
-				winner="p2"
+				sfx(62)
+				winner="p1"
 			end
 		end
 	end,
@@ -720,9 +723,13 @@ function draw_menu()
 end
 
 function draw_reset()
-	cprint(winner.." wins!", 50)
-	if reset_timer>60 then
-		cprint("press ❎ to rematch", 60)
+	if winner!=" " then
+		cprint(winner.." wins!", 50)
+		if reset_timer>60 then
+			cprint("press ❎ to rematch", 60)
+		end
+	else
+		cprint("press ❎ to start", 60)
 	end
 end
 
@@ -1171,8 +1178,8 @@ __sfx__
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+900c00003860138601386013860138601376013760137601376013760137601366013660136601366013660136601356013560135601356013560136601366013660136601356013560135601006010060100601
+930200000f25013250152501c20014200152001520015200152001520015200152000020000200002000020000200002000020000200002000020000200002000020000200002000020000200002000020000200
 990100000f65100001000010f6510060100001000010f6512a6010000100001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100001
 000100001465100001000010c65100001000010360103650000010000100001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100001
 490100002c65100601006011b671146010d601006010b631006010060100601006010060100601006010060100601006010060100601006010060100601006010060100601006010060100601006010060100601
