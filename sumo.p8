@@ -19,6 +19,7 @@ function _init()
 	camx=2
 	camy=0
 	camt=0
+	cpup2=true
 	
 	reset_timer=0
 	--set btnp repeat to never
@@ -31,6 +32,9 @@ function _update()
 	if state=="play" then
 		p1:update()
 		p2:update()
+		if cpup2 then
+			update_cpu_pad()
+		end
 		if winner!=" " then
 			state="reset"
 			reset_timer=0
@@ -188,8 +192,8 @@ p1={
 	handle_grab=function(self)
 		local grapple_space=38
 		if self.canact then
-			if btn(❎,self.p) 
-			and btn(🅾️,self.p) 
+			if button(5,self.p) 
+			and button(4,self.p) 
 			and self.gstate=="ready"
 			then
 				self.gstate="grab"
@@ -233,10 +237,10 @@ p1={
 			self.canmove=false
 			self.canblock=false
 			self.bodycollide=false
-			if btnp(❎,self.p) 
-			or btnp(🅾️,self.p)
-			or btnp(⬅️,self.p)
-			or btnp(➡️,self.p) then
+			if buttonp(5,self.p) 
+			or buttonp(4,self.p)
+			or buttonp(0,self.p)
+			or buttonp(1,self.p) then
 				other(self.p).gcount-=flr(rnd(3))
 			end
 			if abs(self.x-other(self.p).x)>grapple_space+1 then
@@ -256,7 +260,7 @@ p1={
 				-- self.r+=0.01*(self.knockback/100)
 				self.gcount-=1
 				self.dx=self.dx*((other(self.p).prc+grapple_push)/100)
-				if self.gcount<gcount-10 and self.pummel_cool<=0 and (btnp(❎,self.p) or btnp(🅾️,self.p)) then
+				if self.gcount<gcount-10 and self.pummel_cool<=0 and (buttonp(5,self.p) or buttonp(4,self.p)) then
 					self.pummel=true
 					self.gcount-=10
 					self.pummel_cool=pummel_cool
@@ -360,7 +364,7 @@ p1={
 	
 	handle_slaps=function(self)
 		if self.canact then
-			if btnp(🅾️,self.p) 
+			if buttonp(4,self.p) 
 			and self.gstate=="ready" then
 				self.icount+=1
 				if self.islap=="ready" then
@@ -369,7 +373,7 @@ p1={
 			end
 		end
 		if self.canact then
-			if btnp(❎,self.p)
+			if buttonp(5,self.p)
 			and self.gstate=="ready" then
 				self.ocount+=1
 				if self.oslap=="ready" then
@@ -436,7 +440,7 @@ p1={
 	end,
 	
 	lower_arms=function(self)
-		if (not btn(🅾️,self.p) 
+		if (not button(4,self.p) 
 		or self.islap=="not ready"
 		or self.gstate=="not ready")
 		and self.gstate!="grab" 
@@ -446,7 +450,7 @@ p1={
 		and self.stun<=0  then
 			self.iar+=0.02
 		end
-		if (not btn(❎,self.p) 
+		if (not button(5,self.p) 
 		or self.oslap=="not ready" 
 		or self.gstate=="not ready") 
 		and self.gstate!="grab"
@@ -481,7 +485,7 @@ p1={
 	
 	handle_move_input=function(self)
 		if self.canact then
-			if btnp(➡️,self.p) then
+			if buttonp(1,self.p) then
 					if self.lastb[1]=="➡️" 
 					and self.dash_cool==0 
 					and time()-self.lastb[2]<=0.2
@@ -490,7 +494,7 @@ p1={
 						self.dash_cool=dash_cool
 					end
 					self.lastb={"➡️",time()}
-			elseif btnp(⬅️,self.p) then
+			elseif buttonp(0,self.p) then
 				if self.lastb[1]=="⬅️" 
 					and self.dash_cool==0
 					and time()-self.lastb[2]<=0.2
@@ -501,10 +505,10 @@ p1={
 					self.lastb={"⬅️",time()}
 			end
 			if self.dash_cool>0 then self.dash_cool-=1 end
-			if btn(➡️, self.p) then
+			if button(1, self.p) then
 				if self.dx==0 then self.dx=3 end
 				self.move+=1
-			elseif btn(⬅️, self.p) then
+			elseif button(0, self.p) then
 				if self.dx==0 then self.dx=-3 end
 				self.move+=1
 				--self.r+=.005
@@ -516,14 +520,14 @@ p1={
 		if self.move==20 then self.move = 0 end
 	end,
 	handle_block=function(self)
-		if btn(⬇️, self.p) and self.canblock then
+		if button(3, self.p) and self.canblock then
 			self.block=true
 			if self.br<=0.034 then
 				self.br+=.017
 			end
 		end
 		
-		if not btn(⬇️,self.p) then
+		if not button(3,self.p) then
 			self.block=false
 			if self.br<0 then
 				self.br+=.009
@@ -700,6 +704,7 @@ function oval_collide()
  local scaled_dy = dy / combined_ry
  return scaled_dx * scaled_dx + scaled_dy * scaled_dy <= 1
 end
+
 -->8
 --bg/ui
 function draw_bg()
@@ -917,6 +922,36 @@ function draw_wrestlers()
 	p2.shake=p2.shake*0.5
 	if p2.shake<0.05 then
 		p2.shake=0
+	end
+end
+-->8
+--cpu player
+cpu_pad={}
+cpu_pad[0]=0 --⬅️
+cpu_pad[1]=0 --➡️
+cpu_pad[2]=0 --⬆️
+cpu_pad[3]=0 --⬇️
+cpu_pad[4]=0 --🅾️
+cpu_pad[5]=0--❎
+function update_cpu_pad()
+	for k,v in pairs(cpu_pad) do
+		if v>0 then cpu_pad[k]-=1 end
+	end
+end
+--★
+function button(bt,p)
+	if cpup2 and p==1 then
+		return cpu_pad[bt]>0
+	else
+		return btn(bt, p)
+	end
+end
+
+function buttonp(bt,p)
+	if cpup2 and p==1 then
+		return cpu_pad[bt]==1
+	else
+		return btnp(bt, p)
 	end
 end
 __gfx__
