@@ -20,11 +20,17 @@ function _init()
 	camy=0
 	camt=0
 	cpup2=true
-	
+	p2out_x=163
+	p1out_x=-12
+	menu={"one player","two players"}
+	menu_counter=1
 	reset_timer=0
 	--set btnp repeat to never
 	poke(0x5f5c, 255)
 	poke(0x5f5d, 255)
+	
+	
+	flag=false
 end
 
 
@@ -34,6 +40,8 @@ function _update()
 		p2:update()
 		if cpup2 then
 			update_cpu_pad()
+			update_cpu_movement()
+			update_cpu_arms()
 		end
 		if winner!=" " then
 			state="reset"
@@ -48,9 +56,7 @@ function _update()
 		winner=" "
 	elseif state=="menu" or "reset" then
 		if state=="menu" or reset_timer>60 then
-			if btn(❎) then
-				state="match_start"
-			end
+			update_menu()
 		end
 		reset_timer+=1
 	end
@@ -72,28 +78,32 @@ function _draw()
 		draw_wrestlers()
 		p1out=false
 		p2out=false
-		if p2.x>=163 then p2out=true end
-		if p1.x<=-12 then p1out=true end
+		if p2.x>=p2out_x then p2out=true end
+		if p1.x<=p1out_x then p1out=true end
 		--draw_debug()
 		draw_percent()
-		--print(p1.bodycollide,camx+27,camy+20,7)
-		--print(p2.br,camx+84,camy+20,7)
+		--print(p1.canblock,camx+27,camy+20,7)
+		--print(p2.canblock,camx+84,camy+20,7)
+		--print_cpu_strats()
+	
 	end
 end
 -->8
 --rikishi
-block_stun=10
-hit_stun=5
+block_stun=20
+slap_stun=1
+hit_stun=20
 dash=50
 grab_dash=25
 dash_cool=25
 pummel_cool=10
 --gcount=1000
 gcount=80 --length of grapple
-g_cool=60 --grab cooldown
+g_cool=25 --grab cooldown
 gdist=40 --grab distance
+max_g_speed=100
 --% added to prc when pushing
-grapple_push=30
+grapple_push=10
 p1={
 	p=0,
 	x = 40, --body center
@@ -147,6 +157,7 @@ p1={
 	pummel_cool=0,
 	update=function(self)
 		--collission
+		self.canblock=true
 		self:handle_colission()
 		
 		if self.islap=="ready" 
@@ -156,7 +167,7 @@ p1={
 		then
 			if self.gstate!="grapple" 
 			and self.gstate!="grappled" then
-				self.canblock=true
+				self.block=true
 			end
 		else
 			self.canblock=false
@@ -227,7 +238,7 @@ p1={
 			end
 		elseif self.gstate=="not ready" then
 			self.gcool-=1
-			if self.gcount<=0 then
+			if self.gcool<=0 then
 				self.gstate="ready"
 				self.canact=true
 				self.canmove=true
@@ -259,9 +270,10 @@ p1={
 		elseif self.gstate=="grapple" then
 				-- self.r+=0.01*(self.knockback/100)
 				self.gcount-=1
-				self.dx=self.dx*((other(self.p).prc+grapple_push)/100)
+				local grap_speed=min((other(self.p).prc+grapple_push), max_g_speed)
+				self.dx=self.dx*(grap_speed/100)
 				if self.gcount<gcount-10 and self.pummel_cool<=0 and (buttonp(5,self.p) or buttonp(4,self.p)) then
-					self.pummel=true
+					self.pummel=true 
 					self.gcount-=10
 					self.pummel_cool=pummel_cool
 					sfx(rnd({61,63}))
@@ -350,7 +362,10 @@ p1={
 		or (self.gstate=="grapple" 
 					and not at_ledge(other(self.p).p)) then
 			if self.knockback==0 then
-				self.x+=self.dx/5
+				if (self.p==0 and self.x+self.dx/5>-11) or
+				(self.p==1 and self.x+self.dx/5<161) then
+					self.x+=self.dx/5
+				end
 			end
 		elseif self.bodycollide and self.gstate!="grappled" and (is_retreat(self) or self.knockback>0) then
 			self.x+=self.dx/5
@@ -388,14 +403,15 @@ p1={
 						if not other(self.p).block then
 							sfx(rnd({61,63}))
 							other(self.p).prc_target+=flr(10*(self.oar/-0.19))
-							self.stun+=hit_stun
+							self.stun=slap_stun
 						else
 							sfx(59)
-							self.stun+=block_stun
+							self.stun=block_stun
 							self.shake+=1
 						end
 						other(self.p).shake+=abs(self.oar)*5
 						other(self.p).knockback+=(abs(self.oar)*300)*(other(self.p).prc/100)
+						other(self.p).stun=hit_stun
 						self.ocount=0
 						self.oslap="not ready"
 					end
@@ -416,10 +432,10 @@ p1={
 					if not other(self.p).block then
 						sfx(rnd({61,63}))
 						other(self.p).prc_target+=flr(10*(self.iar/-0.19))
-						self.stun+=hit_stun
+						self.stun=slap_stun
 					else
 						sfx(59)
-						self.stun+=block_stun
+						self.stun=block_stun
 						self.shake+=1
 					end
 					other(self.p).shake+=abs(self.iar)*5
@@ -447,7 +463,7 @@ p1={
 		and self.gstate!="grapple"
 		and self.gstate!="grappled"
 		and self.iar<0 
-		and self.stun<=0  then
+	 then
 			self.iar+=0.02
 		end
 		if (not button(5,self.p) 
@@ -456,8 +472,8 @@ p1={
 		and self.gstate!="grab"
 		and self.gstate!="grapple"
 		and self.gstate!="grappled"
-		and (self.oar<0 
-		and self.stun<=0)  then
+		and self.oar<0 
+		then
 			self.oar+=0.02
 		end
 	end,
@@ -489,7 +505,9 @@ p1={
 					if self.lastb[1]=="➡️" 
 					and self.dash_cool==0 
 					and time()-self.lastb[2]<=0.2
-					and time()-self.lastb[2]>0.1 then
+					and time()-self.lastb[2]>0.1 
+					and (self.p==0 or (self.p==1 and cpu==false)) 
+					and (self.gstate!="grappled" and self.gstate!="grapple") then
 						self.dx=dash
 						self.dash_cool=dash_cool
 					end
@@ -498,17 +516,23 @@ p1={
 				if self.lastb[1]=="⬅️" 
 					and self.dash_cool==0
 					and time()-self.lastb[2]<=0.2
-					and time()-self.lastb[2]>0.1 then
+					and time()-self.lastb[2]>0.1 
+					and (self.p==0 or (self.p==1 and cpu==false))
+					and (self.gstate!="grappled" and self.gstate!="grapple") then
 						self.dx=-dash
 						self.dash_cool=dash_cool
 					end
 					self.lastb={"⬅️",time()}
 			end
 			if self.dash_cool>0 then self.dash_cool-=1 end
-			if button(1, self.p) then
+			if button(1, self.p)
+			and (self.gstate!="grappled") 
+			then
 				if self.dx==0 then self.dx=3 end
 				self.move+=1
-			elseif button(0, self.p) then
+			elseif button(0, self.p) 
+			and (self.gstate!="grappled")
+			then
 				if self.dx==0 then self.dx=-3 end
 				self.move+=1
 				--self.r+=.005
@@ -705,6 +729,26 @@ function oval_collide()
  return scaled_dx * scaled_dx + scaled_dy * scaled_dy <= 1
 end
 
+
+function wrnd(tbl)
+ --weighted rnd
+ --takes a table of keys with
+ --values of weights
+ local total = 0
+ for _, weight in pairs(tbl) do
+     total = total + weight
+ end
+
+ local rand = rnd(1) * total
+ local cumulative = 0
+ for key, weight in pairs(tbl) do
+  cumulative = cumulative + weight
+  if rand <= cumulative then
+   return key
+  end
+	end
+	return "none"
+end
 -->8
 --bg/ui
 function draw_bg()
@@ -735,9 +779,28 @@ function draw_percent()
 	print("\^t\^w"..p2.prc.."\^-t\^w%", camx+84+p2xo,camy+7+p2yo,7)
 	print("\^t\^w"..p1.prc.."\^-t\^w%", camx+27+p1xo,camy+7+p1yo,7)
 end
-
+--★
 function draw_menu()
-	cprint("press ❎ to start",50)
+	local c=7
+	if menu_counter==1 then c=7 else c=5 end
+	cprint(menu[1],50,c)
+	if menu_counter==2 then c=7 else c=5 end
+	cprint(menu[2],60,c)
+end
+
+function update_menu()
+	if btnp(⬇️) then
+		menu_counter+=1
+		if menu_counter>2 then menu_counter=1 end
+	end
+	if btnp(⬆️) then
+		menu_counter-=1
+		if menu_counter<1 then menu_counter=2 end
+	end
+	if menu_counter==1 then cpup2=true else cpup2=false end
+	if btn(❎) then
+		state="match_start"
+	end
 end
 
 function draw_reset()
@@ -754,7 +817,7 @@ end
 function cprint(s,y,c)
 	local c = c or 7
 	local x = camx+64-#s*2
-	print(s,x,y,7)
+	print(s,x,y,c)
 end
 
 function update_camera()
@@ -925,20 +988,147 @@ function draw_wrestlers()
 	end
 end
 -->8
---cpu player
+--cpu conditions
+strat_buff=30
+
+arm_strats = {
+		grab=100,
+		slap=110,
+		defend=0,
+		none=100,
+}
+
+movement_strats = {
+		advance=100,
+		retreat=20,
+		footsies=110,
+}
+
+
+function is_slap_range(c,a)
+	if abs(p1.x-p2.x)<70 then
+		arm_strats[c]+=a
+	end
+end
+
+function is_grab_range(c,a)
+	if abs(p1.x-p2.x)<70 then
+		arm_strats[c]+=a
+	end
+end
+
+function is_far_away(c,a)
+	if abs(p1.x-p2.x)>80 then
+		arm_strats[c]+=a
+	end
+end
+
+function is_close(c,a)
+	if abs(p1.x-p2.x)<80 then
+		movement_strats[c]+=a
+	end
+end
+
+function is_far(c,a)
+	if abs(p1.x-p2.x)>50 then
+		movement_strats[c]+=a
+	end
+end
+
+function is_near_edge(c,a)
+	if p2.x>140 then
+		movement_strats[c]+=a
+	end
+end
+
+function is_winning(c,a)
+	if p1.prc>80 and p2.prc<p1.prc then
+		movement_strats[c]+=a
+	end
+end
+
+function p1_slapping(c,a)
+	if p1.islap=="slap" or p1.oslap=="oslap" then
+		arm_strats[c]+=a
+	end
+end
+
+arm_conditions={
+	{f=is_slap_range,s="slap",a=50},
+	{f=is_grab_range,s="grab",a=30},
+	{f=is_far_away,s="none",a=80},
+	{f=p1_slapping,s="defend",a=10}
+}
+
+
+movement_conditions={
+	is_close("footsies",50),
+	is_far("advance",100),
+	is_near_edge("advance",100),
+	is_winning("advance", 100),
+}
+
 cpu_pad={}
 cpu_pad[0]=0 --⬅️
 cpu_pad[1]=0 --➡️
 cpu_pad[2]=0 --⬆️
 cpu_pad[3]=0 --⬇️
 cpu_pad[4]=0 --🅾️
-cpu_pad[5]=0--❎
+cpu_pad[5]=0 --❎
+
+cpu={
+	movement="retreat", --or retreat or footsies
+	arms="slap", --or slap or defend or none
+	no_move=0,
+	mstrat_time=1,
+	astrat_time=1,
+}
+
+
+
+function pick_arms_strat()
+	for c in all(arm_conditions) do
+		flag=true
+		c.f(c.s,c.a)
+	end
+	cpu.astrat_time+=1
+	if cpu.astrat_time%strat_buff==0 then
+		cpu.arms=wrnd(arm_strats)
+	end
+	if cpu.astrat_time>strat_buff*2 then
+		for k,_ in pairs(arm_strats) do
+			arm_strats[k]=1
+		end
+		cpu.astrat_time=1	
+	end
+end
+
+function pick_movement_strat()
+	for condition in all(movement_conditions) do
+		condition()
+	end
+	cpu.mstrat_time+=1
+	if cpu.mstrat_time>strat_buff then
+		cpu.movement=wrnd(movement_strats)
+	end
+	if cpu.mstrat_time>strat_buff*2 then
+		for k,_ in pairs(movement_strats) do
+			movement_strats[k]=1
+		end
+		cpu.mstrat_time=1		
+	end
+	if p2.gstate=="grapple" then
+		cpu.movement="advance"
+	end
+end
+
 function update_cpu_pad()
 	for k,v in pairs(cpu_pad) do
 		if v>0 then cpu_pad[k]-=1 end
 	end
+	if cpu.no_move>0 then cpu.no_move-=1 end
 end
---★
+
 function button(bt,p)
 	if cpup2 and p==1 then
 		return cpu_pad[bt]>0
@@ -953,6 +1143,70 @@ function buttonp(bt,p)
 	else
 		return btnp(bt, p)
 	end
+end
+
+function update_cpu_movement()
+ cpudx=rnd(10)
+ if cpu_pad[0]==0 and cpu_pad[1]==0 and cpu.no_move==0 then
+		if cpu.movement=="advance" then
+			if cpudx>=5 then cpu_pad[0]=4 end
+		elseif cpu.movement=="retreat" then
+			if cpudx>=5 then cpu_pad[1]=3 end
+		elseif cpu.movement=="footsies" then
+			if cpudx>=7 then 
+				cpu_pad[0]=5
+			elseif cpudx<7 and cpudx>=4 then 
+				cpu_pad[1]=5 
+			else
+				cpu.no_move=5
+			end
+		else
+			--cpu.movement="footsies"
+		end
+	end
+	pick_movement_strat()
+end
+
+function update_cpu_arms()
+	cpui=rnd(20)
+	cpuo=rnd(20)
+	if p2.islap=="ready" or p2.oslap=="ready" then
+		if cpu.arms=="slap" then
+			if p2.islap=="ready" and cpui>=19 then
+				cpu_pad[4]=1
+			elseif p2.oslap=="ready" and cpuo>=19 then
+				cpu_pad[5]=1
+			end
+		elseif cpu.arms=="grab" then
+			if p2.gstate=="ready" then
+				cpu_pad[4]=1
+				cpu_pad[5]=1
+				cpu.arms="slap"
+				arm_strats["grab"]=0
+			end
+		elseif cpu.arms=="defend" then
+			cpu_pad[3]=1
+		else
+			cpu.arms="none"
+		end
+	end
+	pick_arms_strat()
+end
+-->8
+function print_cpu_strats()
+	local y = 20 
+	for k,v in pairs(arm_strats) do
+		y+=8
+		print(k..":"..v,camx+84,y,7)
+	end
+	print(cpu.astrat_time, camx+84, y+8, 7)
+	print(flag, camx+65, y+10, 7)
+	y=20
+	for k,v in pairs(movement_strats) do
+		y+=8
+		print(k..":"..v,camx+27,y,7)
+	end
+	print(cpu.mstrat_time, camx+27, y+8, 7)
 end
 __gfx__
 00000000beeebbbbbbbbbbbbbbbbbbbbbeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb888bbbbbb8888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
