@@ -29,7 +29,13 @@ function _init()
 	poke(0x5f5c, 255)
 	poke(0x5f5d, 255)
 	
+	dust_particles={}
 	
+	gyoji_r=110
+	gyoji_l=69
+	gyoji_offeset=0
+	gyoji_parallax = 0.5
+
 	flag=false
 end
 
@@ -38,6 +44,8 @@ function _update()
 	if state=="play" then
 		p1:update()
 		p2:update()
+		update_gyoji()
+		update_particles()
 		if cpup2 then
 			update_cpu_pad()
 			update_cpu_movement()
@@ -54,6 +62,9 @@ function _update()
 		p2:reset_wrestler()
 		state="play"
 		winner=" "
+		gyoji_r=110
+		gyoji_l=69
+		gyoji_offeset=0
 	elseif state=="menu" or "reset" then
 		if state=="menu" or reset_timer>60 then
 			update_menu()
@@ -72,17 +83,21 @@ function _draw()
 	if state=="menu" then
 		draw_menu()
 	elseif state=="reset" then
+		draw_gyoji()
 		draw_wrestlers()
 		draw_reset()
 	elseif state=="play" then
+		draw_gyoji()
+		draw_particles()
 		draw_wrestlers()
+		
 		p1out=false
 		p2out=false
 		if p2.x>=p2out_x then p2out=true end
 		if p1.x<=p1out_x then p1out=true end
 		--draw_debug()
 		draw_percent()
-		--print(p1.canblock,camx+27,camy+20,7)
+		--print(camx,camx+27,camy+20,7)
 		--print(p2.canblock,camx+84,camy+20,7)
 		--print_cpu_strats()
 	
@@ -562,6 +577,7 @@ p1={
 		if self.p==0 then
 			if self.r>0.08 and self.r<0.20 then
 				self.r+=0.02
+				gyoji_l=76
 			elseif self.r>0.20 then
 				sfx(62)
 				winner="p2"
@@ -572,6 +588,7 @@ p1={
 			elseif self.r<-0.20 then
 				sfx(62)
 				winner="p1"
+				gyoji_r=78
 			end
 		end
 	end,
@@ -593,12 +610,19 @@ p1={
 }
 
 function deepcopy(orig)
- local copy = {}
- for orig_key, orig_value in pairs(orig) do
-  copy[orig_key] = orig_value
- end
- return copy
-end	
+	local orig_type = type(orig)
+	local copy
+	if orig_type == 'table' then
+	  copy = {}
+	  for orig_key, orig_value in pairs(orig) do
+		copy[deepcopy(orig_key)] = deepcopy(orig_value)
+	  end
+	  setmetatable(copy, deepcopy(getmetatable(orig)))
+	else
+	  copy = orig
+	end
+	return copy
+  end
 
 function other(p)
 	if p==0 then
@@ -655,9 +679,7 @@ p2.bodymapx=24
 p2.bodymapy=5
 p2.iarmhitxy={0,0}
 p2.oarmhitxy={0,0}
-p2.grapple=false
-p2.shake=0
-p2.gstate="ready"
+
 
 -->8
 --helpers
@@ -756,6 +778,34 @@ function draw_bg()
 	oval(3-40,80,124+40,115,7)
 	line(50,90,50,97)
 	line(77,90,77,97)
+
+end
+
+
+function update_gyoji()
+	-- Check if any player pressed X or O
+	if (buttonp(4, 0) or buttonp(5, 0) or 
+	    buttonp(4, 1) or buttonp(5, 1)) then
+		-- Random chance (30%) to switch the sprite
+		if rnd(10) < 3 then
+			-- Toggle between sprites 69 and 101
+			if gyoji_l == 69 then
+				gyoji_l = 101
+			else
+				gyoji_l = 69
+			end
+		end
+	end
+end
+
+
+function draw_gyoji()
+	gyoji_offset=camx*gyoji_parallax
+	spr(90,55+gyoji_offset,51,3,3)
+	--left (screen lefT)
+	spr(gyoji_l,43+gyoji_offset,55,2,2)
+	--right (screen right)
+	spr(gyoji_r,68+gyoji_offset,55,2,2)
 end
 
 function draw_percent()
@@ -805,9 +855,9 @@ end
 
 function draw_reset()
 	if winner!=" " then
-		cprint(winner.." wins!", 50)
+		cprint(winner.." wins!", 40)
 		if reset_timer>60 then
-			cprint("press ❎ to rematch", 60)
+			cprint("press ❎ to rematch", 50)
 		end
 	else
 		cprint("press ❎ to start", 60)
@@ -824,6 +874,58 @@ function update_camera()
 	local p1c=p1.x-1
 	local p2c=p2.x-21
 	camx=((p1c+p2c)/2)-62
+end
+
+function create_particle(x, y, max_height, width, col, dir)
+	local p = {
+	  x = x,
+	  y = y,
+	  start_x = x,
+	  start_y = y,
+	  max_height = max_height,
+	  width = width,
+	  col = col,
+	  -- progress through the arc (0 to 1)
+	  age = 0,
+	  -- how fast the particle moves through its arc
+	  speed = rnd(0.01) + 0.09,
+	  -- random direction (left or right)
+	  dir = dir --1 or -1
+	}
+	
+	add(dust_particles, p)
+	return p
+  end
+
+function update_particles()
+	for i=#dust_particles,1,-1 do
+		local p = dust_particles[i]
+		
+		-- update progress
+		p.age += p.speed
+		
+		-- calculate current position based on arc
+		-- using sine wave to create the arc motion
+		p.x = p.start_x + (p.width * p.age * p.dir)
+		
+		-- parabolic trajectory for y
+		-- y = 4 * h * (x - x²) where x is 0 to 1
+		-- this makes particle go up and then down
+		local arc_height = 4 * p.max_height * (p.age - p.age * p.age)
+		p.y = p.start_y - arc_height
+		
+		-- remove particle if it has completed its arc
+		-- (progress >= 1 means it has traveled full width and returned to starting height)
+		if p.y>p.start_y+1 then
+			deli(dust_particles, i)
+		end
+	end
+end
+
+function draw_particles()
+	for p in all(dust_particles) do
+	  pset(p.x, p.y, p.col)
+	end
 end
 
 function draw_debug()
@@ -929,7 +1031,23 @@ function draw_wrestlers()
 	local	p1xo=p1x-11+(p1.br*160)
 	local	p1yo=p1.y-19
 
+	if p1.knockback>5 then
+		if rnd(2)>1 then
+			create_particle(p1.x-21, p1.y+32, 3, 10, 9, -1)
+		end
+		if rnd(2)>1 then
+			create_particle(p1.x+4, p1.y+22, 3, 10, 9, -1)
+		end
+	end
 
+	if p2.knockback>5 then
+		if rnd(2)>1 then
+			create_particle(p2.x-2, p1.y+32, 3, 10, 9, 1)
+		end
+		if rnd(2) then
+			create_particle(p2.x-27, p1.y+22, 3, 10, 9, 1)
+		end
+	end
 --p1 inner
 	camera(camx, camy+p1yshake)
 	pal(8,13,0)
@@ -1241,38 +1359,38 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccc0000000000bbbbbbbbbbbbbbb
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccc000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccc00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccc00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbe00000000eeeeeee00bbbbbbbbbbbbbbb666888888888bb888888bbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbeee00000000eeee000bbbbbbbbbbbbbbbbb888888888bbb88888bbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbeeeee0000000000000bbbbbbbbbbbbbbbbb88888888bbbb8888bbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbeeeeeee0000000000bbbbbbbbbbbbbbbbbb8888888bbbbb888bbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbeeeeeee000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbeeeeeee00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbbeeeee00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbbbbbbbbbb00bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbbbbbbbb0000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbbbbbbbb0000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbbbbbbbb00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbbbbbbb000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbbbbbbb00000ee0bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbbbbbbee00eeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbbbbeeeee0eeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbbbeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbbbbeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbbbbeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbbbeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbbbeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbbeeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbbeeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbbeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbbeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbbeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbb00eeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbb000eeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbb00000eeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
-bbbbbbbbb0000000eeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000
+bbbbbbbbbe00000000eeeeeee00bbbbbbbbbbbbbbbbbbbbbbbbbbbb3bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb66333333333333333333366bbbbb
+bbbbbbbbbeee00000000eeee000bbbbbbbbbbbbbbbbbbbbbbbbbbb33bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb633333333333333333336bbbbbb
+bbbbbbbbbeeeee0000000000000bbbbbbbbbbbbbbbbbbbbbbbbbb333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb333333333333333bbbbbbbbb
+bbbbbbbbbeeeeeee0000000000bbbbbbbbbbbbbbbbbbbbbbbbbb3333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb33333333333bbbbbbbbbbb
+bbbbbbbbbeeeeeee000000000bbbbbbbbbbbbbbbbbbbbbbbbbb33333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbeeeeeee00000000bbbbbbbbbbbbbbbbbbbbbbbbbbb3333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbeeeee00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbb3333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbb00bbbbbbbbbbbbbbbbbbbbbbbbbbbb77777bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbb0000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb6bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbb0000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb666bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbb00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb666bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbb000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb333666333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbb00000ee0bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb333363333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbee00eeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb333333333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbeeeee0eeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb333333333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb333333333bbbbbbbbbbbbbbbbbbb3bbbbbbbbbbbbbbb
+bbbbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbb33bbbbbbbbbbbbbbbbbbbbbbbbbbbb333333333bbbbbbbbbbbbbbbbbbb33bbbbbbbbbbbbbb
+bbbbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbb333bbbbbbbbbbbbbbbbbbbbbbbbbbbb333333333bbbbbbbbbbbbbbbbbbb333bbbbbbbbbbbbb
+bbbbbbbbbbbeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbb3333bbbbbbbbbbbbbbbbbbbbbbbbbbbb733333337bbbbbbbbbbbbbbbbbbb3333bbbbbbbbbbbb
+bbbbbbbbbbbeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbb33333bbbbbbbbbbbbbbbbbbbbbbbbbbbb777777777bbbbbbbbbbbbbbbbbbb33333bbbbbbbbbbb
+bbbbbbbbbbeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbb337773bbbbbbbbbbbbbbbbbbbbbbbbbbbb377777773bbbbbbbbbbbbbbbbbbbb3333bbbbbbbbbbb
+bbbbbbbbbbeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbb377777bbbbbbbbbbbbbbbbbbbbbbbbbbb33333333333bbbbbbbbbbbbbbbbbbbb333bbbbbbbbbbb
+bbbbbbbbbeeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbb377777bbbbbbbbbbbbbbbbbbbbbbbbbb3333333333333bbbbbbbbbbbbbbbbbbb333bbbbbbbbbbb
+bbbbbbbbbeeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbb33777bbbbbbbbbbbbbbbbbbbbbbbbbb333333333333333bbbbbbbbbbbbbbbbb333bbbbbbbbbbbb
+bbbbbbbbbeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbb3376bbbbbbbbbbbbbbbbbbbbbbbbb33333333333333333bbbbbbbbbbbbbbb663bbbbbbbbbbbbb
+bbbbbbbbbeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbb6bbbbbbbbbbbbbbbbbbbbbbbbbb33333333333333333bbbbbbbbbbbbbbbb6bbbbbbbbbbbbbb
+bbbbbbbbbeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb33333333333333333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbb00eeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb33333333333333333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbb000eeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb33333333333333333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbb00000eeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb33333333b33333333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbb0000000eeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb3333333bbb3333333bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 __label__
 88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 88888eeeeee888777777888eeeeee888eeeeee888eeeeee888888888888888888888888888888888888ff8ff8888228822888222822888888822888888228888
@@ -1404,16 +1522,16 @@ __label__
 88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 
 __map__
-0607080c0c0c0c0c0d0d0c0c0c0c0c0d0d0d0d0e746668686868666666665600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-1617180c0c0c0c0c0d0d0c0c0c0c0c0d0d0d1d1e746650515253666666595600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-2627280c0c0c0c0c0d0d0c0d0d0d0d0d0d0d2d2e746660616263666666595600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3637380c0c0c0c0c0d0d0d3c0c0c0c0c3b3c3d3e7466707172736666665956000b0c0d0e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0c0c0c0c340c0c0c0c0c0c0c1e1e1e06565656565656404142435656565956001b1c1d1e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-76767676340c0c0c0c0c0c0c1e1e1e1e565656565656565656565656565656002b2c2d2e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-76767634340c0c01020c0c0c1e1e2503040506565656565656565656565656003b3c3d3e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-76763434340c0c11120c0c0c1e34351314150d56565656565656565656560000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-76763434340c0c21220c0c0c0c0c0c2324250d56565656000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0076760000000000000000000000003334350d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0607080c0c0c0c0c0d0d0c0c0c0c0c0d0d0d0d0e484868686868484848482f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+1617180c0c0c0c0c0d0d0c0c0c0c0c0d0d0d1d1e484850515253484848592f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+2627280c0c0c0c0c0d0d0c0d0d0d0d0d0d0d2d2e484860616263484848592f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3637380c0c0c0c0c0d0d0d3c0c0c0c0c3b3c3d3e484870717273484848592f000b0c0d0e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0c0c0c0c340c0c0c0c0c0c0c1e1e1e062f2f2f2f2f2f404142432f2f2f592f001b1c1d1e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+48484848340c0c0c0c0c0c0c1e1e1e1e2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f002b2c2d2e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+48484834340c0c01020c0c0c1e1e25030405062f2f2f2f2f2f2f2f2f2f2f2f003b3c3d3e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+48483434340c0c11120c0c0c1e34351314150d2f2f2f2f2f2f2f2f2f2f2f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+48483434340c0c21220c0c0c0c0c0c2324250d2f2f2f2f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0048480000000000000000000000003334350d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000090a0d0c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
