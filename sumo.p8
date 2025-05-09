@@ -103,8 +103,11 @@ function _draw()
 		if p1.x<=p1out_x then p1out=true end
 		--draw_debug()
 		draw_percent()
-		--print(camx,camx+27,camy+20,7)
-		--print(p2.canblock,camx+84,camy+20,7)
+		print(p1.x,camx+27,camy+20,7)
+		print(cpu.movement,camx+84,camy+20,7)
+		print("r: "..movement_strats["retreat"], camx+80, camy+27)
+		print("a: "..movement_strats["advance"], camx+80, camy+34)
+		print("f: "..movement_strats["footsies"], camx+80, camy+41)
 		--print_cpu_strats()
 	
 	end
@@ -269,6 +272,7 @@ p1={
 			self.canmove=false
 			self.canblock=false
 			self.bodycollide=false
+			self.br=0
 			if buttonp(5,self.p) 
 			or buttonp(4,self.p)
 			or buttonp(0,self.p)
@@ -527,7 +531,7 @@ p1={
 					and self.dash_cool==0 
 					and time()-self.lastb[2]<=0.2
 					and time()-self.lastb[2]>0.1 
-					and (self.p==0 or (self.p==1 and cpu==false)) 
+					and (self.p==0 or (self.p==1 and cpup2==false)) 
 					and (self.gstate!="grappled" and self.gstate!="grapple") then
 						self.dx=dash
 						self.dash_cool=dash_cool
@@ -538,7 +542,7 @@ p1={
 					and self.dash_cool==0
 					and time()-self.lastb[2]<=0.2
 					and time()-self.lastb[2]>0.1 
-					and (self.p==0 or (self.p==1 and cpu==false))
+					and (self.p==0 or (self.p==1 and cpup2==false))
 					and (self.gstate!="grappled" and self.gstate!="grapple") then
 						self.dx=-dash
 						self.dash_cool=dash_cool
@@ -1067,21 +1071,21 @@ function draw_wrestlers()
 	local	p1xo=p1x-11+(p1.br*160)
 	local	p1yo=p1.y-19
 
-	if p1.knockback>5 then
+	if p1.knockback>5 and p1.r==0 then
 		if rnd(2)>1 then
-			create_particle(p1.x-21, p1.y+32, 3, 10, 9, -1)
+			create_particle(p1.x-21, p1.y+32, rnd(3), rnd(10), 9, -1)
 		end
 		if rnd(2)>1 then
-			create_particle(p1.x+4, p1.y+22, 3, 10, 9, -1)
+			create_particle(p1.x+4, p1.y+22, rnd(3), rnd(10), 9, -1)
 		end
 	end
 
-	if p2.knockback>5 then
+	if p2.knockback>5 and p2.r==0 then
 		if rnd(2)>1 then
-			create_particle(p2.x-2, p1.y+32, 3, 10, 9, 1)
+			create_particle(p2.x-2, p1.y+32, rnd(3), rnd(10), 9, 1)
 		end
-		if rnd(2) then
-			create_particle(p2.x-27, p1.y+22, 3, 10, 9, 1)
+		if rnd(2)>1 then
+			create_particle(p2.x-27, p1.y+22, rnd(3), rnd(10), 9, 1)
 		end
 	end
 --p1 inner
@@ -1178,7 +1182,7 @@ function is_far_away(c,a)
 end
 
 function is_close(c,a)
-	if abs(p1.x-p2.x)<80 then
+	if abs(p1.x-p2.x)<40 then
 		movement_strats[c]+=a
 	end
 end
@@ -1190,7 +1194,7 @@ function is_far(c,a)
 end
 
 function is_near_edge(c,a)
-	if p2.x>140 then
+	if p2.x>140 or p1.x<5 then
 		movement_strats[c]+=a
 	end
 end
@@ -1207,19 +1211,32 @@ function p1_slapping(c,a)
 	end
 end
 
+function is_grappling(c,a)
+	if p2.gstate=="grapple" then
+		movement_strats[c]+=a
+	end
+end
+
+function p2_grappling(c,a)
+	if p2.gstate=="grapple" then
+		arm_strats[c]+=a
+	end
+end
+
 arm_conditions={
 	{f=is_slap_range,s="slap",a=50},
 	{f=is_grab_range,s="grab",a=30},
 	{f=is_far_away,s="none",a=80},
-	{f=p1_slapping,s="defend",a=10}
+	{f=p1_slapping,s="defend",a=10},
+	{f=p2_grappling,s="slap", a=1000},
 }
 
 
 movement_conditions={
-	is_close("footsies",50),
-	is_far("advance",100),
-	is_near_edge("advance",100),
-	is_winning("advance", 100),
+	{f=is_close, s="footsies",a=50},
+	{f=is_far, s="advance", a=100},
+	{f=is_near_edge, s="advance",a=100},
+	{f=is_winning, s="advance", a=100},
 }
 
 cpu_pad={}
@@ -1242,7 +1259,6 @@ cpu={
 
 function pick_arms_strat()
 	for c in all(arm_conditions) do
-		flag=true
 		c.f(c.s,c.a)
 	end
 	cpu.astrat_time+=1
@@ -1255,22 +1271,23 @@ function pick_arms_strat()
 		end
 		cpu.astrat_time=1	
 	end
+	if p2.gstate=="grapple" then
+		cpu.arms="slap"
+	end
 end
 
 function pick_movement_strat()
-	for condition in all(movement_conditions) do
-		condition()
+	for c in all(movement_conditions) do
+		c.f(c.s,c.a)
 	end
 	cpu.mstrat_time+=1
 	if cpu.mstrat_time>strat_buff then
 		cpu.movement=wrnd(movement_strats)
 	end
-	if cpu.mstrat_time>strat_buff*2 then
-		for k,_ in pairs(movement_strats) do
-			movement_strats[k]=1
-		end
-		cpu.mstrat_time=1		
+	for k,v in pairs(movement_strats) do
+		if v>5000 then movement_strats[k] = 1000 end
 	end
+
 	if p2.gstate=="grapple" then
 		cpu.movement="advance"
 	end
