@@ -13,7 +13,7 @@ function _init()
 	palt(11,true)
 	--pal(12,14,1)
 	--pal(13,8,1)
-	state="menu"
+	state="main_menu"
 	winner=" "
 	blinkframe=0
 	camx=2
@@ -38,11 +38,23 @@ function _init()
 	audience_parallax = 0.15
 
 	flag=false
+	menu_arm_r=0
+	menu_arm_state="pause" --or up or down
+	menu_arm_count=0
+
+	countdown=90
+
+	init_audience()
 end
 
 
 function _update()
 	if state=="play" then
+		if countdown>-30 and countdown<90 then
+			countdown-=1
+		else
+			countdown=90
+		end
 		p1:update()
 		p2:update()
 		update_gyoji()
@@ -61,19 +73,25 @@ function _update()
 		p2.x=110
 		p1:reset_wrestler()
 		p2:reset_wrestler()
-		state="play"
 		winner=" "
 		gyoji_r=110
 		gyoji_l=69
 		gyoji_offset=0
 		audience_offset=0
-		init_audience()
+		countdown-=1
+		if countdown<=0 then
+			state="play"
+		end
+	elseif state=="main_menu" then
+		update_particles(100)
+		update_menu()
 	elseif state=="menu" or "reset" then
 		if state=="menu" or reset_timer>60 then
 			update_menu()
 		end
 		reset_timer+=1
 	end
+
 end
 
 
@@ -81,21 +99,25 @@ function _draw()
 	update_camera()
 	camera(camx,camy)
 	cls(1)
-	draw_bg()
 	--print(state,100,113,7)
 	if state=="menu" then
 		draw_menu()
+	elseif state=="main_menu" then
+		draw_main_menu()
+		draw_particles()
 	elseif state=="reset" then
+		draw_bg()
 		draw_audience()
 		draw_gyoji()
 		draw_wrestlers()
 		draw_reset()
-	elseif state=="play" then
+	elseif state=="play" or state=="match_start" then
+		draw_bg()
 		draw_audience()
 		draw_gyoji()
 		draw_particles()
 		draw_wrestlers()
-		
+		draw_countdown()
 		
 		p1out=false
 		p2out=false
@@ -103,11 +125,11 @@ function _draw()
 		if p1.x<=p1out_x then p1out=true end
 		--draw_debug()
 		draw_percent()
-		print(p1.x,camx+27,camy+20,7)
-		print(cpu.movement,camx+84,camy+20,7)
-		print("r: "..movement_strats["retreat"], camx+80, camy+27)
-		print("a: "..movement_strats["advance"], camx+80, camy+34)
-		print("f: "..movement_strats["footsies"], camx+80, camy+41)
+		--print(p1.iar,camx+27,camy+20,7)
+		--print(p1.oar,camx+84,camy+20,7)
+		--print("r: "..movement_strats["retreat"], camx+80, camy+27)
+		--print("a: "..movement_strats["advance"], camx+80, camy+34)
+		--print("f: "..movement_strats["footsies"], camx+80, camy+41)
 		--print_cpu_strats()
 	
 	end
@@ -115,7 +137,7 @@ end
 -->8
 --rikishi
 block_stun=20
-slap_stun=1
+slap_stun=5
 hit_stun=20
 dash=50
 grab_dash=25
@@ -128,6 +150,9 @@ gdist=40 --grab distance
 max_g_speed=100
 --% added to prc when pushing
 grapple_push=10
+
+oslap_amt=500
+islap_amt=500
 p1={
 	p=0,
 	x = 40, --body center
@@ -199,7 +224,7 @@ p1={
 		
 		self:handle_block()
 		
-		if self.recover or self.block or self.knockback>0 then
+		if self.recover or self.block or self.knockback>5 then
 			self.canact=false
 			self.dx=0
 		elseif self.stun>0 then
@@ -268,6 +293,9 @@ p1={
 				self.canmove=true
 			end
 		elseif self.gstate=="grappled" then
+			if self.iar<0.02 then self.iar+=0.02 end
+			if self.oar<0.02 then self.oar+=0.02 end
+
 			self.canact=false
 			self.canmove=false
 			self.canblock=false
@@ -278,6 +306,13 @@ p1={
 			or buttonp(0,self.p)
 			or buttonp(1,self.p) then
 				other(self.p).gcount-=flr(rnd(3))
+				if self.br==0 then
+					self.br+=0.02
+				elseif self.br>0 then
+					self.br-=0.02
+				elseif self.br<0 then
+					self.br+=0.02
+				end
 			end
 			if abs(self.x-other(self.p).x)>grapple_space+1 then
 				if self.p==0 then 
@@ -345,6 +380,9 @@ p1={
 					self.gstate="not ready"
 					other(self.p).gstate="not ready"
 					other(self.p).gcool=g_cool
+					other(self.p).br=0
+					other(self.p).iar=0
+					other(self.p).oar=0
 					self.knockback=250
 				end
 		end
@@ -435,7 +473,7 @@ p1={
 							self.shake+=1
 						end
 						other(self.p).shake+=abs(self.oar)*5
-						other(self.p).knockback+=(abs(self.oar)*300)*(other(self.p).prc/100)
+						other(self.p).knockback+=(abs(self.oar)*oslap_amt)*(other(self.p).prc/100)
 						other(self.p).stun=hit_stun
 						self.ocount=0
 						self.oslap="not ready"
@@ -464,7 +502,7 @@ p1={
 						self.shake+=1
 					end
 					other(self.p).shake+=abs(self.iar)*5
-					other(self.p).knockback+=(abs(self.iar)*300)*(other(self.p).prc/100)
+					other(self.p).knockback+=(abs(self.iar)*islap_amt)*(other(self.p).prc/100)
 					self.icount=0
 					self.islap="not ready"
 				end
@@ -797,10 +835,16 @@ function draw_bg()
 	line(-100, 50, 300, 50, 5)
 	line(-100, 60, 300, 60, 5)
 	line(-100, 70, 300, 70, 5)
-
-
 end
-
+function draw_countdown()
+	local y = 20
+	if countdown>0 and countdown<90 then
+		print("\#1\^b\^t\^w"..(countdown\30)+1,camx+62, y, 7)
+	elseif countdown<0 then
+		print("\#1\^bはっけよい!", camx+40, y+7, 6)
+		print("\#1\^t\^w\^bgo!", camx+52, y-5, 7)
+	end
+end
 function init_audience()
 	audience={}
 	local stands = {20-8,30-8,40-8,50-8,60-8,70-8}
@@ -937,7 +981,8 @@ function create_particle(x, y, max_height, width, col, dir)
 	return p
   end
 
-function update_particles()
+function update_particles(extend)
+	local extend = extend or 0
 	for i=#dust_particles,1,-1 do
 		local p = dust_particles[i]
 		
@@ -956,7 +1001,7 @@ function update_particles()
 		
 		-- remove particle if it has completed its arc
 		-- (progress >= 1 means it has traveled full width and returned to starting height)
-		if p.y>p.start_y+1 then
+		if p.y>p.start_y+extend then
 			deli(dust_particles, i)
 		end
 	end
@@ -1021,8 +1066,65 @@ function draw_debug()
 	pset(p1.x, p2.y,9)
 	pset(p2.x-24,p2.y,9)
 end
+function draw_main_menu()
+	local x,y=4,27
+	if menu_arm_state=="pause" then
+		menu_arm_count+=1
+		if menu_arm_count>=120 then
+			menu_arm_state="up"
+			menu_arm_count=0
+		end
+	elseif menu_arm_state=="up" then
+		menu_arm_r-=0.03
+		if menu_arm_r<-0.15 then
+			menu_arm_state="down"
+			for c=0,10 do
+				create_particle(x+58,y+39, rnd(50), rnd(50), 7, 1)
+			end
+		end
+	elseif menu_arm_state=="down" then
+		menu_arm_r+=0.02
+		if menu_arm_r>=0 then
+			menu_arm_state="pause"
+		end
+	end
+
+	
+	pal(8,13,0)
+	pal(14,140,0)
+	--i leg
+	pd_rotate(x+43,y+82,0,7,6,5,false,3)
+	--iarm
+	pd_rotate(x+45,y+30,0,32,3,5,false, 3)
+	--body
+	pd_rotate(x,y,0,p1.bodymapx,p1.bodymapy,7.8,false,3)
+	--o leg
+	pd_rotate(x-30,y+75,0,15,6,7, false, 3)
+	--o arm
+	pd_rotate(x+8,y+23,menu_arm_r,33,12,6.5,false,3)
+	
+	
+	local logox,logoy = 50, 3
+	print("\^w\^tおしだし", logox, logoy, 7)
+	print("\^woshidashi!", logox+1, logoy+12,7)
+	print("\^w\^tすも", logox+23, logoy+19, 7)
+	print("\^wsumo", logox+24, logoy+31,7)
 
 
+	local p1x,p1y=80,60
+	local p2x,p2y=80,80
+
+	rectfill(p1x,p1y,p1x+40,p1y+12,7)
+	if menu_counter==1 then
+		rect(p1x-1,p1y-1,p1x+41,p1y+13,10)
+	end
+	print("1 player", p1x+5, p1y+4,0)
+	rectfill(p2x,p2y,p2x+40,p2y+12,7)
+	if menu_counter==2 then
+		rect(p2x-1,p2y-1,p2x+41,p2y+13,10)
+	end
+	print("2 players", p2x+4, p2y+4,0)
+end
 -->8
 --draw wrestlers
 function calculate_legs(p)
