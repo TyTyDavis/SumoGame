@@ -43,6 +43,11 @@ function _init()
 	menu_arm_count=0
 
 	countdown=90
+	
+	-- Initialize difficulty settings
+	difficulty_level = 2 -- 1=easy, 2=normal, 3=hard, 4=expert
+	difficulty_scaling = 1.0
+	consecutive_losses = 0
 
 	init_audience()
 end
@@ -78,7 +83,13 @@ function _update()
 		gyoji_l=69
 		gyoji_offset=0
 		audience_offset=0
-		countdown-=1
+		countdown-=1	
+		
+		-- Initialize CPU personality when match starts
+		if cpup2 then
+			init_cpu_personality()
+		end
+		
 		if countdown<=0 then
 			state="play"
 		end
@@ -86,6 +97,13 @@ function _update()
 		update_particles(100)
 		update_menu()
 	elseif state=="menu" or "reset" then
+		if state=="reset" and reset_timer==1 then
+			-- Adjust difficulty based on match result when a match ends
+			if cpup2 then
+				adjust_difficulty()
+			end
+		end
+		
 		if state=="menu" or reset_timer>60 then
 			update_menu()
 		end
@@ -1248,9 +1266,74 @@ function draw_wrestlers()
 	end
 end
 -->8
---cpu conditions
+--cpu conditions and personality profiles
 strat_buff=30
 
+-- CPU personality profile settings
+cpu_personalities = {
+	aggressive = {
+		arm_strats = {
+			grab=150,
+			slap=180,
+			defend=30,
+			none=20,
+		},
+		movement_strats = {
+			advance=200,
+			retreat=20,
+			footsies=60,
+		},
+		reaction_time=0.8, -- multiplier, lower = faster
+		description="Aggressive attacker"
+	},
+	defensive = {
+		arm_strats = {
+			grab=70,
+			slap=60,
+			defend=200,
+			none=50,
+		},
+		movement_strats = {
+			advance=50,
+			retreat=130,
+			footsies=150,
+		},
+		reaction_time=0.9,
+		description="Defensive counter-fighter"
+	},
+	balanced = {
+		arm_strats = {
+			grab=100,
+			slap=110,
+			defend=80,
+			none=90,
+		},
+		movement_strats = {
+			advance=100,
+			retreat=80,
+			footsies=120,
+		},
+		reaction_time=1.0,
+		description="Balanced fighter"
+	},
+	tactical = {
+		arm_strats = {
+			grab=130,
+			slap=90,
+			defend=100,
+			none=60,
+		},
+		movement_strats = {
+			advance=120,
+			retreat=110,
+			footsies=180,
+		},
+		reaction_time=0.7,
+		description="Tactical fighter"
+	}
+}
+
+-- Base weights that will be modified by personality and difficulty
 arm_strats = {
 		grab=100,
 		slap=110,
@@ -1263,6 +1346,11 @@ movement_strats = {
 		retreat=20,
 		footsies=110,
 }
+
+-- Dynamic difficulty adjustment
+difficulty_level = 2 -- 1=easy, 2=normal, 3=hard, 4=expert
+difficulty_scaling = 1.0 -- Will be adjusted based on player performance
+consecutive_losses = 0 -- Track player losses to adjust difficulty
 
 
 function is_slap_range(c,a)
@@ -1395,11 +1483,79 @@ function pick_movement_strat()
 	end
 end
 
+function init_cpu_personality()
+	-- Randomly select a personality at match start
+	local personalities = {"aggressive", "defensive", "balanced", "tactical"}
+	local rand_idx = 1 + flr(rnd(#personalities))
+	cpu.personality = personalities[rand_idx]
+	
+	-- Copy personality base stats to current strategy weights
+	local profile = cpu_personalities[cpu.personality]
+	for k,v in pairs(profile.arm_strats) do
+		arm_strats[k] = v
+	end
+	for k,v in pairs(profile.movement_strats) do
+		movement_strats[k] = v
+	end
+	
+	-- Set reaction delay based on personality
+	cpu.reaction_delay = profile.reaction_time * 5
+	
+	-- Initialize additional CPU properties
+	cpu.strat_variance = 1 -- Add some randomness to strategy timing
+	cpu.combo_state = 0 -- Track combo progression
+	
+	-- Adjust for difficulty level
+	apply_difficulty_scaling()
+end
+
+function adjust_difficulty()
+	-- Based on match results, adjust difficulty scaling
+	if winner == "p1" then
+		consecutive_losses += 1
+		difficulty_scaling = min(difficulty_scaling + 0.1, 1.5)
+	elseif winner == "p2" then
+		consecutive_losses = max(consecutive_losses - 1, 0)
+		if consecutive_losses <= 0 then
+			difficulty_scaling = max(difficulty_scaling - 0.05, 0.5)
+		end
+	end
+	
+	apply_difficulty_scaling()
+end
+
+function apply_difficulty_scaling()
+	-- Apply the difficulty scaling to various CPU parameters
+	cpu.reaction_delay = cpu.reaction_delay / difficulty_scaling
+	
+	-- Scale strategy weights based on difficulty
+	for k,v in pairs(arm_strats) do
+		if k == "defend" then
+			-- Higher difficulty = better at defending
+			arm_strats[k] = v * difficulty_scaling
+		end
+	end
+	
+	-- Expert difficulty gets combo awareness
+	if difficulty_level >= 3 then
+		cpu.combo_state = 1
+	end
+end
+
 function update_cpu_pad()
 	for k,v in pairs(cpu_pad) do
 		if v>0 then cpu_pad[k]-=1 end
 	end
 	if cpu.no_move>0 then cpu.no_move-=1 end
+	
+	-- Apply reaction delay based on personality and difficulty
+	if cpu.reaction_delay > 0 then
+		-- Randomly decide if we should delay this frame
+		if rnd(10) < cpu.reaction_delay then
+			-- Skip updating CPU inputs this frame
+			return
+		end
+	end
 end
 
 function button(bt,p)
