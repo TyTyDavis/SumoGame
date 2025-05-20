@@ -16,15 +16,18 @@ function _init()
 	state="main_menu"
 	winner=" "
 	blinkframe=0
-	camx=2
+	camx=0
 	camy=0
 	camt=0
 	cpup2=true
 	p2out_x=163
 	p1out_x=-12
 	menu={"one player","two players"}
+	reset_menu={"rematch","main menu"}
 	menu_counter=1
+	reset_menu_counter=1
 	reset_timer=0
+	menu_ready_timer=0
 	--set btnp repeat to never
 	poke(0x5f5c, 255)
 	poke(0x5f5d, 255)
@@ -43,6 +46,11 @@ function _init()
 	menu_arm_count=0
 
 	countdown=90
+	
+	-- Initialize difficulty settings
+	difficulty_level = 2 -- 1=easy, 2=normal, 3=hard, 4=expert
+	difficulty_scaling = 1.0
+	consecutive_losses = 0
 
 	init_audience()
 end
@@ -79,6 +87,13 @@ function _update()
 		gyoji_offset=0
 		audience_offset=0
 		countdown-=1
+		dust_particles={}
+		
+		-- Initialize CPU personality when match starts
+		if cpup2 then
+			init_cpu_personality()
+		end
+		
 		if countdown<=0 then
 			state="play"
 		end
@@ -86,7 +101,16 @@ function _update()
 		update_particles(100)
 		update_menu()
 	elseif state=="menu" or "reset" then
-		if state=="menu" or reset_timer>60 then
+		if state=="reset" and reset_timer==1 then
+			-- Adjust difficulty based on match result when a match ends
+			if cpup2 then
+				adjust_difficulty()
+			end
+		elseif state=="reset" and reset_timer>50 then
+			update_reset_menu()
+		end
+		
+		if state=="menu" then
 			update_menu()
 		end
 		reset_timer+=1
@@ -125,7 +149,7 @@ function _draw()
 		if p1.x<=p1out_x then p1out=true end
 		--draw_debug()
 		draw_percent()
-		--print(p1.iar,camx+27,camy+20,7)
+		--print(reset_menu_counter,camx+27,camy+20,7)
 		--print(p1.oar,camx+84,camy+20,7)
 		--print("r: "..movement_strats["retreat"], camx+80, camy+27)
 		--print("a: "..movement_strats["advance"], camx+80, camy+34)
@@ -923,35 +947,69 @@ function draw_menu()
 end
 
 function update_menu()
+	menu_ready_timer+=1
+	if menu_ready_timer>10 then
+		if btnp(⬇️) then
+			menu_counter+=1
+			if menu_counter>2 then menu_counter=1 end
+		end
+		if btnp(⬆️) then
+			menu_counter-=1
+			if menu_counter<1 then menu_counter=2 end
+		end
+		if menu_counter==1 then cpup2=true else cpup2=false end
+		if btn(❎) then
+			state="match_start"
+			menu_ready_timer=0
+		end
+	end
+end
+
+function update_reset_menu()
 	if btnp(⬇️) then
-		menu_counter+=1
-		if menu_counter>2 then menu_counter=1 end
+		reset_menu_counter+=1
+		if reset_menu_counter>2 then reset_menu_counter=1 end
 	end
 	if btnp(⬆️) then
-		menu_counter-=1
-		if menu_counter<1 then menu_counter=2 end
+		reset_menu_counter-=1
+		if reset_menu_counter<1 then reset_menu_counter=2 end
 	end
-	if menu_counter==1 then cpup2=true else cpup2=false end
 	if btn(❎) then
-		state="match_start"
+		if reset_menu_counter==1 then
+			state="match_start"
+		else
+			state="main_menu"
+			camx=2
+		end
+		reset_menu_counter=1
 	end
 end
 
 function draw_reset()
 	if winner!=" " then
 		cprint(winner.." wins!", 40)
-		if reset_timer>60 then
-			cprint("press ❎ to rematch", 50)
+		if reset_timer>45 then
+			if reset_menu_counter==1 then
+				cprint("rematch",50,7,"\#0\^b")
+			else
+				cprint("rematch",50)
+			end
+			if reset_menu_counter==2 then
+				cprint("main menu",60, 7,"\#0\^b")
+			else
+				cprint("main menu",60)
+			end
 		end
 	else
 		cprint("press ❎ to start", 60)
 	end
 end
 
-function cprint(s,y,c)
+function cprint(s,y,c,extra)
 	local c = c or 7
+	local extra=extra or ""
 	local x = camx+64-#s*2
-	print(s,x,y,c)
+	print(extra..s,x,y,c)
 end
 
 function update_camera()
@@ -1067,7 +1125,7 @@ function draw_debug()
 	pset(p2.x-24,p2.y,9)
 end
 function draw_main_menu()
-	local x,y=4,27
+	local x,y=camx+4,27
 	if menu_arm_state=="pause" then
 		menu_arm_count+=1
 		if menu_arm_count>=120 then
@@ -1092,6 +1150,7 @@ function draw_main_menu()
 	
 	pal(8,13,0)
 	pal(14,140,0)
+	pal(13,140,1)
 	--i leg
 	pd_rotate(x+43,y+82,0,7,6,5,false,3)
 	--iarm
@@ -1104,15 +1163,15 @@ function draw_main_menu()
 	pd_rotate(x+8,y+23,menu_arm_r,33,12,6.5,false,3)
 	
 	
-	local logox,logoy = 50, 3
-	print("\^w\^tおしだし", logox, logoy, 7)
+	local logox,logoy = camx+50, 3
+	print("\^w\^tおしネ▒きし", logox, logoy, 7)
 	print("\^woshidashi!", logox+1, logoy+12,7)
 	print("\^w\^tすも", logox+23, logoy+19, 7)
 	print("\^wsumo", logox+24, logoy+31,7)
 
 
-	local p1x,p1y=80,60
-	local p2x,p2y=80,80
+	local p1x,p1y=camx+80,60
+	local p2x,p2y=camx+80,80
 
 	rectfill(p1x,p1y,p1x+40,p1y+12,7)
 	if menu_counter==1 then
@@ -1218,7 +1277,7 @@ function draw_wrestlers()
 	pd_rotate(p2bx,p2by,p2.br+p2.r,p2.bodymapx,p2.bodymapy,7.8,p2.f)
 	pal(14,14,0)
 --p2 outer
-		local p1bx, p1by = point_on_circle(p1cx+(p1.br*160),p1cy,45,.285+p1.r)
+	local p1bx, p1by = point_on_circle(p1cx+(p1.br*160),p1cy,45,.285+p1.r)
 	pd_rotate(p1bx,p1by,p1.br-p1.r,p1.bodymapx,p1.bodymapy,7.8,p1.f)
 	local p2olx,p2oly = point_on_circle(p2cx, p2cy, 27, .11+p2.r)
 	pd_rotate(p2olx+p2ol, p2oly,0+p2.r,15,6,7, true)
@@ -1248,9 +1307,74 @@ function draw_wrestlers()
 	end
 end
 -->8
---cpu conditions
+--cpu conditions and personality profiles
 strat_buff=30
 
+-- CPU personality profile settings
+cpu_personalities = {
+	aggressive = {
+		arm_strats = {
+			grab=150,
+			slap=180,
+			defend=30,
+			none=20,
+		},
+		movement_strats = {
+			advance=200,
+			retreat=20,
+			footsies=60,
+		},
+		reaction_time=0.8, -- multiplier, lower = faster
+		description="Aggressive attacker"
+	},
+	defensive = {
+		arm_strats = {
+			grab=70,
+			slap=60,
+			defend=200,
+			none=50,
+		},
+		movement_strats = {
+			advance=50,
+			retreat=130,
+			footsies=150,
+		},
+		reaction_time=0.9,
+		description="Defensive counter-fighter"
+	},
+	balanced = {
+		arm_strats = {
+			grab=100,
+			slap=110,
+			defend=80,
+			none=90,
+		},
+		movement_strats = {
+			advance=100,
+			retreat=80,
+			footsies=120,
+		},
+		reaction_time=1.0,
+		description="Balanced fighter"
+	},
+	tactical = {
+		arm_strats = {
+			grab=130,
+			slap=90,
+			defend=100,
+			none=60,
+		},
+		movement_strats = {
+			advance=120,
+			retreat=110,
+			footsies=180,
+		},
+		reaction_time=0.7,
+		description="Tactical fighter"
+	}
+}
+
+-- Base weights that will be modified by personality and difficulty
 arm_strats = {
 		grab=100,
 		slap=110,
@@ -1263,6 +1387,11 @@ movement_strats = {
 		retreat=20,
 		footsies=110,
 }
+
+-- Dynamic difficulty adjustment
+difficulty_level = 2 -- 1=easy, 2=normal, 3=hard, 4=expert
+difficulty_scaling = 1.0 -- Will be adjusted based on player performance
+consecutive_losses = 0 -- Track player losses to adjust difficulty
 
 
 function is_slap_range(c,a)
@@ -1395,11 +1524,79 @@ function pick_movement_strat()
 	end
 end
 
+function init_cpu_personality()
+	-- Randomly select a personality at match start
+	local personalities = {"aggressive", "defensive", "balanced", "tactical"}
+	local rand_idx = 1 + flr(rnd(#personalities))
+	cpu.personality = personalities[rand_idx]
+	
+	-- Copy personality base stats to current strategy weights
+	local profile = cpu_personalities[cpu.personality]
+	for k,v in pairs(profile.arm_strats) do
+		arm_strats[k] = v
+	end
+	for k,v in pairs(profile.movement_strats) do
+		movement_strats[k] = v
+	end
+	
+	-- Set reaction delay based on personality
+	cpu.reaction_delay = profile.reaction_time * 5
+	
+	-- Initialize additional CPU properties
+	cpu.strat_variance = 1 -- Add some randomness to strategy timing
+	cpu.combo_state = 0 -- Track combo progression
+	
+	-- Adjust for difficulty level
+	apply_difficulty_scaling()
+end
+
+function adjust_difficulty()
+	-- Based on match results, adjust difficulty scaling
+	if winner == "p1" then
+		consecutive_losses += 1
+		difficulty_scaling = min(difficulty_scaling + 0.1, 1.5)
+	elseif winner == "p2" then
+		consecutive_losses = max(consecutive_losses - 1, 0)
+		if consecutive_losses <= 0 then
+			difficulty_scaling = max(difficulty_scaling - 0.05, 0.5)
+		end
+	end
+	
+	apply_difficulty_scaling()
+end
+
+function apply_difficulty_scaling()
+	-- Apply the difficulty scaling to various CPU parameters
+	cpu.reaction_delay = cpu.reaction_delay / difficulty_scaling
+	
+	-- Scale strategy weights based on difficulty
+	for k,v in pairs(arm_strats) do
+		if k == "defend" then
+			-- Higher difficulty = better at defending
+			arm_strats[k] = v * difficulty_scaling
+		end
+	end
+	
+	-- Expert difficulty gets combo awareness
+	if difficulty_level >= 3 then
+		cpu.combo_state = 1
+	end
+end
+
 function update_cpu_pad()
 	for k,v in pairs(cpu_pad) do
 		if v>0 then cpu_pad[k]-=1 end
 	end
 	if cpu.no_move>0 then cpu.no_move-=1 end
+	
+	-- Apply reaction delay based on personality and difficulty
+	if cpu.reaction_delay > 0 then
+		-- Randomly decide if we should delay this frame
+		if rnd(10) < cpu.reaction_delay then
+			-- Skip updating CPU inputs this frame
+			return
+		end
+	end
 end
 
 function button(bt,p)
