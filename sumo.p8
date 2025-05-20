@@ -16,15 +16,18 @@ function _init()
 	state="main_menu"
 	winner=" "
 	blinkframe=0
-	camx=2
+	camx=0
 	camy=0
 	camt=0
 	cpup2=true
 	p2out_x=163
 	p1out_x=-12
 	menu={"one player","two players"}
+	reset_menu={"rematch","main menu"}
 	menu_counter=1
+	reset_menu_counter=1
 	reset_timer=0
+	menu_ready_timer=0
 	--set btnp repeat to never
 	poke(0x5f5c, 255)
 	poke(0x5f5d, 255)
@@ -83,7 +86,8 @@ function _update()
 		gyoji_l=69
 		gyoji_offset=0
 		audience_offset=0
-		countdown-=1	
+		countdown-=1
+		dust_particles={}
 		
 		-- Initialize CPU personality when match starts
 		if cpup2 then
@@ -102,9 +106,11 @@ function _update()
 			if cpup2 then
 				adjust_difficulty()
 			end
+		elseif state=="reset" and reset_timer>50 then
+			update_reset_menu()
 		end
 		
-		if state=="menu" or reset_timer>60 then
+		if state=="menu" then
 			update_menu()
 		end
 		reset_timer+=1
@@ -143,7 +149,7 @@ function _draw()
 		if p1.x<=p1out_x then p1out=true end
 		--draw_debug()
 		draw_percent()
-		--print(p1.iar,camx+27,camy+20,7)
+		--print(reset_menu_counter,camx+27,camy+20,7)
 		--print(p1.oar,camx+84,camy+20,7)
 		--print("r: "..movement_strats["retreat"], camx+80, camy+27)
 		--print("a: "..movement_strats["advance"], camx+80, camy+34)
@@ -941,35 +947,69 @@ function draw_menu()
 end
 
 function update_menu()
+	menu_ready_timer+=1
+	if menu_ready_timer>10 then
+		if btnp(⬇️) then
+			menu_counter+=1
+			if menu_counter>2 then menu_counter=1 end
+		end
+		if btnp(⬆️) then
+			menu_counter-=1
+			if menu_counter<1 then menu_counter=2 end
+		end
+		if menu_counter==1 then cpup2=true else cpup2=false end
+		if btn(❎) then
+			state="match_start"
+			menu_ready_timer=0
+		end
+	end
+end
+
+function update_reset_menu()
 	if btnp(⬇️) then
-		menu_counter+=1
-		if menu_counter>2 then menu_counter=1 end
+		reset_menu_counter+=1
+		if reset_menu_counter>2 then reset_menu_counter=1 end
 	end
 	if btnp(⬆️) then
-		menu_counter-=1
-		if menu_counter<1 then menu_counter=2 end
+		reset_menu_counter-=1
+		if reset_menu_counter<1 then reset_menu_counter=2 end
 	end
-	if menu_counter==1 then cpup2=true else cpup2=false end
 	if btn(❎) then
-		state="match_start"
+		if reset_menu_counter==1 then
+			state="match_start"
+		else
+			state="main_menu"
+			camx=2
+		end
+		reset_menu_counter=1
 	end
 end
 
 function draw_reset()
 	if winner!=" " then
 		cprint(winner.." wins!", 40)
-		if reset_timer>60 then
-			cprint("press ❎ to rematch", 50)
+		if reset_timer>45 then
+			if reset_menu_counter==1 then
+				cprint("rematch",50,7,"\#0\^b")
+			else
+				cprint("rematch",50)
+			end
+			if reset_menu_counter==2 then
+				cprint("main menu",60, 7,"\#0\^b")
+			else
+				cprint("main menu",60)
+			end
 		end
 	else
 		cprint("press ❎ to start", 60)
 	end
 end
 
-function cprint(s,y,c)
+function cprint(s,y,c,extra)
 	local c = c or 7
+	local extra=extra or ""
 	local x = camx+64-#s*2
-	print(s,x,y,c)
+	print(extra..s,x,y,c)
 end
 
 function update_camera()
@@ -1085,7 +1125,7 @@ function draw_debug()
 	pset(p2.x-24,p2.y,9)
 end
 function draw_main_menu()
-	local x,y=4,27
+	local x,y=camx+4,27
 	if menu_arm_state=="pause" then
 		menu_arm_count+=1
 		if menu_arm_count>=120 then
@@ -1110,6 +1150,7 @@ function draw_main_menu()
 	
 	pal(8,13,0)
 	pal(14,140,0)
+	pal(13,140,1)
 	--i leg
 	pd_rotate(x+43,y+82,0,7,6,5,false,3)
 	--iarm
@@ -1122,15 +1163,15 @@ function draw_main_menu()
 	pd_rotate(x+8,y+23,menu_arm_r,33,12,6.5,false,3)
 	
 	
-	local logox,logoy = 50, 3
-	print("\^w\^tおしだし", logox, logoy, 7)
+	local logox,logoy = camx+50, 3
+	print("\^w\^tおしネ▒きし", logox, logoy, 7)
 	print("\^woshidashi!", logox+1, logoy+12,7)
 	print("\^w\^tすも", logox+23, logoy+19, 7)
 	print("\^wsumo", logox+24, logoy+31,7)
 
 
-	local p1x,p1y=80,60
-	local p2x,p2y=80,80
+	local p1x,p1y=camx+80,60
+	local p2x,p2y=camx+80,80
 
 	rectfill(p1x,p1y,p1x+40,p1y+12,7)
 	if menu_counter==1 then
@@ -1236,7 +1277,7 @@ function draw_wrestlers()
 	pd_rotate(p2bx,p2by,p2.br+p2.r,p2.bodymapx,p2.bodymapy,7.8,p2.f)
 	pal(14,14,0)
 --p2 outer
-		local p1bx, p1by = point_on_circle(p1cx+(p1.br*160),p1cy,45,.285+p1.r)
+	local p1bx, p1by = point_on_circle(p1cx+(p1.br*160),p1cy,45,.285+p1.r)
 	pd_rotate(p1bx,p1by,p1.br-p1.r,p1.bodymapx,p1.bodymapy,7.8,p1.f)
 	local p2olx,p2oly = point_on_circle(p2cx, p2cy, 27, .11+p2.r)
 	pd_rotate(p2olx+p2ol, p2oly,0+p2.r,15,6,7, true)
