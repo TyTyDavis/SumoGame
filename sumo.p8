@@ -160,7 +160,7 @@ function _draw()
 end
 -->8
 --rikishi
-block_stun=20
+block_stun=25
 slap_stun=5
 hit_stun=20
 dash=50
@@ -445,7 +445,21 @@ p1={
 	end,
 	
 	handle_movement=function(self)
-		if not self.bodycollide 
+		-- Allow moving away from edge even past the boundary or when recovering
+		-- Player 1: Allow moving right (away from edge) even if past boundary
+		if (self.p==0 and self.dx>0 and self.x<-5) then
+			self.x+=self.dx/5
+		-- Player 2: Allow moving left (away from edge) even if past boundary
+		elseif (self.p==1 and self.dx<0 and self.x>155) then
+			self.x+=self.dx/5
+		-- Allow moving away from edge when recovering from rotation
+		elseif (self.p==0 and self.r>0 and self.r<0.20 and self.dx>0) then
+			-- Player 1 moving right (away from left edge)
+			self.x+=self.dx/5
+		elseif (self.p==1 and self.r<0 and self.r>-0.20 and self.dx<0) then
+			-- Player 2 moving left (away from right edge)
+			self.x+=self.dx/5
+		elseif not self.bodycollide 
 		or (self.gstate=="grapple" 
 					and not at_ledge(other(self.p).p)) then
 			if self.knockback==0 then
@@ -489,7 +503,7 @@ p1={
 					if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
 						if not other(self.p).block then
 							sfx(rnd({61,63}))
-							other(self.p).prc_target+=flr(10*(self.oar/-0.19))
+							other(self.p).prc_target+=flr(13*(self.oar/-0.19))
 							self.stun=slap_stun
 						else
 							sfx(59)
