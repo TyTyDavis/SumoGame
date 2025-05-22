@@ -162,7 +162,7 @@ end
 --rikishi
 block_stun=25
 slap_stun=5
-hit_stun=20
+hit_stun=10
 dash=50
 grab_dash=25
 dash_cool=25
@@ -170,12 +170,12 @@ pummel_cool=10
 --gcount=1000
 gcount=80 --length of grapple
 g_cool=25 --grab cooldown
-gdist=40 --grab distance
+gdist=45 --grab distance
 max_g_speed=100
 --% added to prc when pushing
 grapple_push=10
 
-oslap_amt=500
+oslap_amt=600
 islap_amt=500
 p1={
 	p=0,
