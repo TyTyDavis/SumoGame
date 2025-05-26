@@ -13,6 +13,7 @@ function _init()
 	palt(11,true)
 	--pal(12,14,1)
 	--pal(13,8,1)
+	pal(15,132,1)
 	state="main_menu"
 	winner=" "
 	blinkframe=0
@@ -51,7 +52,9 @@ function _init()
 	difficulty_level = 2 -- 1=easy, 2=normal, 3=hard, 4=expert
 	difficulty_scaling = 1.0
 	consecutive_losses = 0
-
+	
+	p1wins=0
+	p2wins=0
 	init_audience()
 end
 
@@ -99,6 +102,8 @@ function _update()
 		end
 	elseif state=="main_menu" then
 		update_particles(100)
+		p1wins=0
+		p2wins=0
 		update_menu()
 	elseif state=="menu" or "reset" then
 		if state=="reset" and reset_timer==1 then
@@ -149,6 +154,7 @@ function _draw()
 		if p1.x<=p1out_x then p1out=true end
 		--draw_debug()
 		draw_percent()
+		draw_wins()
 		--print(reset_menu_counter,camx+27,camy+20,7)
 		--print(p1.oar,camx+84,camy+20,7)
 		--print("r: "..movement_strats["retreat"], camx+80, camy+27)
@@ -667,6 +673,7 @@ p1={
 			elseif self.r>0.20 then
 				sfx(62)
 				winner="p2"
+				p2wins+=1
 				gyoji_r=78
 			end
 		else
@@ -675,6 +682,7 @@ p1={
 			elseif self.r<-0.20 then
 				sfx(62)
 				winner="p1"
+				p1wins+=1
 				gyoji_l=76
 			end
 		end
@@ -860,8 +868,41 @@ function wrnd(tbl)
 end
 -->8
 --bg/ui
+function trifill(x, y, width, height, col)
+  -- x, y: position of the right angle
+  -- width: horizontal size (positive for right, negative for left)
+  -- height: vertical size (positive for down, negative for up)
+  -- col: color of the triangle
+
+  -- Determine direction and bounds
+  local x1 = x
+  local y1 = y
+  local x2 = x + width
+  local y2 = y + height
+  local y_start = y
+  local y_end = y + height
+  local step = height >= 0 and 1 or -1
+  local abs_height = abs(height)
+  local abs_width = abs(width)
+
+  -- Iterate over each scanline (y-coordinate)
+  for i = 0, abs_height do
+    local t = i / abs_height -- Interpolation factor (0 to 1)
+    local x_end = flr(x1 + t * (x2 - x1)) -- Linearly interpolate x
+    local y_current = y_start + i * step
+    -- Draw horizontal line for this scanline
+    if width >= 0 then
+      line(x1, y_current, x_end, y_current, col)
+    else
+      line(x_end, y_current, x1, y_current, col)
+    end
+  end
+end
+
 function draw_bg()
-	rectfill(-100,75,128+100,128,4)
+	left_edge=3-40-12
+	right_edge=124+40+12
+	rectfill(left_edge,75,right_edge,128,4)
 	oval(3-40,80,124+40,115,7)
 	line(50,90,50,97)
 	line(77,90,77,97)
@@ -873,6 +914,22 @@ function draw_bg()
 	line(-100, 50, 300, 50, 5)
 	line(-100, 60, 300, 60, 5)
 	line(-100, 70, 300, 70, 5)
+
+	--dohyo edges
+	rectfill(left_edge,120,right_edge,128,15)
+	--right
+	trifill(right_edge+1, 75,13,14,15)
+	rectfill(right_edge+1,75+14,right_edge+14,128,15)
+	line(right_edge+1,120,right_edge+14, 128,4)
+
+	--left
+	trifill(left_edge-1, 75,-13,14,15)
+	rectfill(left_edge-1,75+14,left_edge-14,128,15)
+	line(left_edge-1,120,left_edge-14, 128,4)
+	
+	--center steps
+	rectfill(64-8, 121, 64+8, 123, 4)
+	rectfill(64-8, 125, 64+8, 127, 4)
 end
 function draw_countdown()
 	local y = 20
@@ -948,10 +1005,34 @@ function draw_percent()
 		p2xo=1-rnd(2)
 		p2yo=1-rnd(2)
 	end
+	--circfill(camx+92, camy+11,13,8)
+	--circfill(camx+35, camy+11,13,8)
 	print("\^t\^w"..p2.prc.."\^-t\^w%", camx+84+p2xo,camy+7+p2yo,7)
 	print("\^t\^w"..p1.prc.."\^-t\^w%", camx+27+p1xo,camy+7+p1yo,7)
 end
---★
+
+function draw_wins()
+	if p1wins>0 then
+		if p1wins<=3 then
+			for c=1,p1wins do
+				print("★", camx+27+(8*(c-1)),camy+18,10)
+			end
+		else
+			print("★\f7\#1\^b"..p1wins, camx+27,camy+18,10)
+		end
+	end
+	if p2wins>0 then
+		if p2wins<=3 then
+			for c=1,p2wins do
+				print("★", camx+84+(8*(c-1)),camy+18,10)
+			end
+		else
+			print("★\f7\#1\^b"..p2wins, camx+84,camy+18,10)
+		end
+	end
+	--print("p2", camx+84,camy+17,7)
+	--print("p1", camx+27,camy+17,7)
+end
 function draw_menu()
 	local c=7
 	if menu_counter==1 then c=7 else c=5 end
@@ -1001,7 +1082,7 @@ end
 
 function draw_reset()
 	if winner!=" " then
-		cprint(winner.." wins!", 40)
+		cprint(winner.." wins!", 40, 7, "\#0\^b")
 		if reset_timer>45 then
 			if reset_menu_counter==1 then
 				cprint("rematch",50,7,"\#0\^b")
@@ -1178,7 +1259,7 @@ function draw_main_menu()
 	
 	
 	local logox,logoy = camx+50, 3
-	print("\^w\^tおしネ▒きし", logox, logoy, 7)
+	print("\^w\^tおしネきし", logox+1, logoy, 7)
 	print("\^woshidashi!", logox+1, logoy+12,7)
 	print("\^w\^tすも", logox+23, logoy+19, 7)
 	print("\^wsumo", logox+24, logoy+31,7)
@@ -1702,20 +1783,20 @@ __gfx__
 00000000beeeeeeeebbbbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbbb00000cc0bbbbbbbbbb8888888888bbb888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 00000000bbeeeeeeebbbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbbbcc00cccccbbbbbbbbb8888888888bbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbbbbbbbeeeeeeebbbbbbbbbbbeeeeeeeeeeeeeebbbbbbbbbbbbccccc0cccccbbbbbbbbb888888888bbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbeeeeeeebbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbccccccccccccbbbbbbbbb888888888bbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbbbb777777b
-bbbbbbbbbbeeeeeebbbbbbbbbbbeeeeeeeeeeeeebbbbbbbbbbbcccccccccccccccbbbbbbbb888888888bbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbb755557b
-bbbbbbbbbbeeeeeebbbbbbbbbbbeeeeeeeeeeebbbbbbbbbbbbbcccccccccccccccbbbbbbb888888888bbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbbb775777b
-bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbbcccccccccccccccccbbbbbb888888888bbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbb755557b
-bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbbccccccccccccccccccbbbb888888888bbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbb757577b
-bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbcccccccccccccccccccbbbb888888888bbbbbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbbb777777b
+bbbbbbbbbbeeeeeeebbbbbbbbbbeeeeeeeeeeeeeeebbbbbbbbbbbccccccccccccbbbbbbbbb888888888bbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbbbb666666b
+bbbbbbbbbbeeeeeebbbbbbbbbbbeeeeeeeeeeeeebbbbbbbbbbbcccccccccccccccbbbbbbbb888888888bbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbb655556b
+bbbbbbbbbbeeeeeebbbbbbbbbbbeeeeeeeeeeebbbbbbbbbbbbbcccccccccccccccbbbbbbb888888888bbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbbb665666b
+bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbbcccccccccccccccccbbbbbb888888888bbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbb655556b
+bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbbccccccccccccccccccbbbb888888888bbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbb656566b
+bbbbbbbbbbbeeeebbbbbbbbbbbeeeeeeeeeebbbbbbbbbbbbbcccccccccccccccccccbbbb888888888bbbbbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbbb666666b
 bbbbbbbbbbeeeeeebbbbbbbbbbeeeeeeeeebbbbbbbbbbbbbbcccccccccccccccccccbbbb888888888bbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbb55555555
 bbbbbbbbbbeeeeeeebbbbbbbbbeeeeeeeeebbbbbbbbbbbbbccccccccccccccccccccbbbbb88888888bbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbeeeeeeebbbbbbbbbeeeeeeebbbbbbbbbbbbbbccccccccccccccccccccbbbbb88888888bbbbbbbbbbbbb888bbbbbbbbbbbbbbbbbbbbbbbb777777b
-bbbbbbbbbbbbeeeeeebbbbbbbbbeeeeeeebbbbbbbbbbbbbbcccccccccccccccccccbbbbbb888888888bbbbbbbbbbbb88bbbbbbbbbbbbbbbbbbbbbbbbb777577b
-bbbbbbbbbbbbbbeeeebbbbbbbbbeeeeeebbbbbbbbbbbbbbbcccccccccccccccccccbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb775557b
-bbbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbbcccccccccccccccccccbbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb757577b
-bbbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbb00cccccccccccccccccbbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb757577b
-bbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeeebbbbbbbbbbbbbbb000cccccccccccccccbbbbbbbbbb888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb777777b
+bbbbbbbbbbbeeeeeeebbbbbbbbbeeeeeeebbbbbbbbbbbbbbccccccccccccccccccccbbbbb88888888bbbbbbbbbbbbb888bbbbbbbbbbbbbbbbbbbbbbbb666666b
+bbbbbbbbbbbbeeeeeebbbbbbbbbeeeeeeebbbbbbbbbbbbbbcccccccccccccccccccbbbbbb888888888bbbbbbbbbbbb88bbbbbbbbbbbbbbbbbbbbbbbbb666566b
+bbbbbbbbbbbbbbeeeebbbbbbbbbeeeeeebbbbbbbbbbbbbbbcccccccccccccccccccbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb665556b
+bbbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbbcccccccccccccccccccbbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb656566b
+bbbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbb00cccccccccccccccccbbbbbbbb8888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb656566b
+bbbbbbbbbbbbbbbbbbbbbbbbbeeeeeeeebbbbbbbbbbbbbbb000cccccccccccccccbbbbbbbbbb888888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb666666b
 bbbbbbbbbbbbbbbbbbbbbbbbeeeeeeeebbbbbbbbbbbbbbbb00000cccccccccccccbbbbbbbbbb88888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb55555555
 bbbbbbbbbbbbbbbbbbbbbbbbeeeeeeebbbbbbbbbbbbbbbbb0000000cccccccccccbbbbbbbbbbb888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb11111111
 bbbbbbbbbbbbbbbbbbbbbbbbbeeeeebbbbbbbbbbbbbbbbbbc00000000ccccccc00bbbbbbbbbbbb8888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb11555511
