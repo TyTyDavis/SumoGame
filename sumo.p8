@@ -902,7 +902,8 @@ end
 function draw_bg()
 	left_edge=3-40-12
 	right_edge=124+40+12
-	rectfill(left_edge,75,right_edge,128,4)
+	top_edge=77
+	rectfill(left_edge,top_edge,right_edge,128,4)
 	oval(3-40,80,124+40,115,7)
 	line(50,90,50,97)
 	line(77,90,77,97)
@@ -918,13 +919,13 @@ function draw_bg()
 	--dohyo edges
 	rectfill(left_edge,120,right_edge,128,15)
 	--right
-	trifill(right_edge+1, 75,13,14,15)
-	rectfill(right_edge+1,75+14,right_edge+14,128,15)
+	trifill(right_edge+1, top_edge,13,14,15)
+	rectfill(right_edge+1,top_edge+14,right_edge+14,128,15)
 	line(right_edge+1,120,right_edge+14, 128,4)
 
 	--left
-	trifill(left_edge-1, 75,-13,14,15)
-	rectfill(left_edge-1,75+14,left_edge-14,128,15)
+	trifill(left_edge-1, top_edge,-13,14,15)
+	rectfill(left_edge-1,top_edge+14,left_edge-14,128,15)
 	line(left_edge-1,120,left_edge-14, 128,4)
 	
 	--center steps
@@ -974,11 +975,11 @@ end
 
 function draw_gyoji()
 	gyoji_offset=camx*gyoji_parallax
-	spr(90,55+gyoji_offset,51,3,3)
+	spr(90,55+gyoji_offset,53,3,3)
 	--left (screen lefT)
-	spr(gyoji_l,43+gyoji_offset,55,2,2)
+	spr(gyoji_l,43+gyoji_offset,57,2,2)
 	--right (screen right)
-	spr(gyoji_r,68+gyoji_offset,55,2,2)
+	spr(gyoji_r,68+gyoji_offset,57,2,2)
 end
 
 function draw_audience()
