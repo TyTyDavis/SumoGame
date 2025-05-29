@@ -53,8 +53,8 @@ function _init()
 	difficulty_scaling = 1.0
 	consecutive_losses = 0
 	
-	p1wins=0
-	p2wins=0
+	p1record={}
+	p2record={}
 	init_audience()
 end
 
@@ -102,8 +102,8 @@ function _update()
 		end
 	elseif state=="main_menu" then
 		update_particles(100)
-		p1wins=0
-		p2wins=0
+		p1record={}
+		p2record={}
 		update_menu()
 	elseif state=="menu" or "reset" then
 		if state=="reset" and reset_timer==1 then
@@ -673,7 +673,8 @@ p1={
 			elseif self.r>0.20 then
 				sfx(62)
 				winner="p2"
-				p2wins+=1
+				add(p2record, 1)
+				add(p1record, 0)
 				gyoji_r=78
 			end
 		else
@@ -682,7 +683,8 @@ p1={
 			elseif self.r<-0.20 then
 				sfx(62)
 				winner="p1"
-				p1wins+=1
+				add(p1record, 1)
+				add(p2record, 0)
 				gyoji_l=76
 			end
 		end
@@ -1012,28 +1014,65 @@ function draw_percent()
 	print("\^t\^w"..p1.prc.."\^-t\^w%", camx+27+p1xo,camy+7+p1yo,7)
 end
 
+function count_wins(tab)
+    local ones = 0
+    local zeros = 0
+    
+    for i=1,#tab do
+        if tab[i] == 1 then
+            ones += 1
+        elseif tab[i] == 0 then
+            zeros += 1
+        end
+    end
+    
+    return ones, zeros
+end
+
 function draw_wins()
-	if p1wins>0 then
-		if p1wins<=3 then
-			for c=1,p1wins do
-				print("★", camx+27+(8*(c-1)),camy+18,10)
+	local p1x=0
+	local p2x=0
+	pal(8,13,0)
+	if #p1record<7 then
+		for r in all(p1record) do 
+			if r==1 then
+				circfill(camx+3+p1x, 124, 2, 8)
+			else
+				circ(camx+3+p1x, 124, 2, 8)
 			end
-		else
-			print("★\f7\#1\^b"..p1wins, camx+27,camy+18,10)
+			p1x+=6
 		end
+	else
+		local wins,losses = count_wins(p1record)
+		circfill(camx+5, 124,2,8)
+		print(wins, camx+9, 122, 7)
+
+		circ(camx+22, 124,2,8)
+		print(losses, camx+26, 122, 7)
 	end
-	if p2wins>0 then
-		if p2wins<=3 then
-			for c=1,p2wins do
-				print("★", camx+84+(8*(c-1)),camy+18,10)
+	
+	pal(8,8,0)
+	if #p2record<7 then
+		for r in all(p2record) do 
+			if r==1 then
+				circfill(camx+124+p2x, 124, 2, 8)
+			else
+				circ(camx+124+p2x, 124, 2, 8)
 			end
-		else
-			print("★\f7\#1\^b"..p2wins, camx+84,camy+18,10)
+			p2x-=6
 		end
+	else
+		local wins,losses = count_wins(p2record)
+		circ(camx+119-((#tostr(losses)-1)*4), 124,2,8)
+		print(losses, camx+123-((#tostr(losses)-1)*4), 122, 7)
+
+		circfill(camx+101, 124,2,8)
+		print(wins, camx+105, 122, 7)
 	end
 	--print("p2", camx+84,camy+17,7)
 	--print("p1", camx+27,camy+17,7)
 end
+
 function draw_menu()
 	local c=7
 	if menu_counter==1 then c=7 else c=5 end
