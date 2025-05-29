@@ -1,7 +1,8 @@
 pico-8 cartridge // http://www.pico-8.com
 version 38
 __lua__
---sumo game
+--oshidashi! sumo
+--by tyler r. davis
 --[[
 todo:
 something is wrong with deepcopy
@@ -140,6 +141,8 @@ function _draw()
 		draw_gyoji()
 		draw_wrestlers()
 		draw_reset()
+	elseif state=="label" then
+		draw_label()
 	elseif state=="play" or state=="match_start" then
 		draw_bg()
 		draw_audience()
@@ -1258,6 +1261,56 @@ function draw_debug()
 	oval(p2.x-34,p2.y-15,p2.x-13,p2.y+16,oval_col)
 	pset(p1.x, p2.y,9)
 	pset(p2.x-24,p2.y,9)
+end
+
+function draw_label()
+	rectfill(0,78,165,165,4)
+	oval(3,80,128,120,7)
+	
+	--gyoji
+	spr(90,58,54,3,3)
+	--left (screen lefT)
+	spr(101,46,58,2,2)
+	--right (screen right)
+	spr(110,71,58,2,2)
+	local x,y=camx-13,27
+	pal(8,13,0)
+	pal(14,140,0)
+	pal(13,140,1)
+	
+	--i leg
+	pd_rotate(x+41,y+82,0,7,6,5,false,3)
+	--iarm
+	pd_rotate(x+45,y+30,0,32,3,5,false, 3)
+	--body
+	pd_rotate(x,y,0,p1.bodymapx,p1.bodymapy,7.8,false,3)
+	--o leg
+	pd_rotate(x-30,y+75,0,15,6,7, false, 3)
+	--o arm
+	pd_rotate(x+13,y+24,0,33,12,6.5,false,3)
+
+	pal(8,8,0)
+	pal(14,14,0)
+	local x,y=camx+120,27
+	--ileg
+	pd_rotate(x-21,y+82,0,7,6,5,true,3)
+	--iarm
+	pd_rotate(x-25,y+30,0,32,3,5,true, 3)
+	--body
+	pd_rotate(x,y+99,0,p2.bodymapx,p2.bodymapy,7.8,true,3)
+	--o leg
+	pd_rotate(x+52,y+75,0,15,6,7, true, 3)
+	--o arm
+	pd_rotate(x+7,y+24,0,33,12,6.5,true,3)
+	
+	
+	local logox,logoy = camx+25, 3
+	print("\^w\^tおしネきし", logox+1, logoy, 7)
+	print("\^woshidashi!", logox+1, logoy+12,7)
+	print("\^w\^tすも", logox+23, logoy+19, 7)
+	print("\^wsumo", logox+24, logoy+31,7)
+
+
 end
 function draw_main_menu()
 	local x,y=camx+4,27
