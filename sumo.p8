@@ -3,11 +3,7 @@ version 38
 __lua__
 --oshidashi! sumo
 --by tyler r. davis
---[[
-todo:
-something is wrong with deepcopy
-its messing up references to things
-]]--
+
 
 function _init()
 	palt(0,false)
@@ -21,6 +17,13 @@ function _init()
 	camx=0
 	camy=0
 	camt=0
+	-- Camera smoothing settings
+	cam_target_x=0
+	cam_smooth=0.1  -- Lower = smoother (0.1 = 10% movement per frame)
+	cam_left_margin=20   -- How close to left edge wrestlers can get
+	cam_right_margin=108 -- How close to right edge wrestlers can get
+	cam_move_threshold=2  -- Minimum change before camera moves
+	
 	cpup2=true
 	p2out_x=163
 	p1out_x=-12
@@ -171,7 +174,7 @@ end
 --rikishi
 block_stun=25
 slap_stun=5
-hit_stun=10
+hit_stun=6
 dash=50
 grab_dash=25
 dash_cool=25
@@ -182,7 +185,7 @@ g_cool=25 --grab cooldown
 gdist=45 --grab distance
 max_g_speed=100
 --% added to prc when pushing
-grapple_push=10
+grapple_push=20
 
 oslap_amt=600
 islap_amt=500
@@ -1153,7 +1156,34 @@ end
 function update_camera()
 	local p1c=p1.x-1
 	local p2c=p2.x-21
-	camx=((p1c+p2c)/2)-62
+	local center=((p1c+p2c)/2)-62
+	
+	-- Calculate screen positions of wrestlers
+	local p1_screen_x = p1c - camx
+	local p2_screen_x = p2c - camx
+	
+	-- Determine if we need to move the camera
+	local need_camera_move = false
+	
+	-- Check if either wrestler is too close to the screen edges
+	if p1_screen_x < cam_left_margin or 
+	   p1_screen_x > cam_right_margin or
+	   p2_screen_x < cam_left_margin or 
+	   p2_screen_x > cam_right_margin then
+		cam_target_x = center
+		need_camera_move = true
+	end
+	
+	-- Only move the camera if necessary
+	if need_camera_move and abs(cam_target_x - camx) > cam_move_threshold then
+		camx = camx + (cam_target_x - camx) * cam_smooth
+	end
+	
+	-- Ensure camera doesn't go beyond game boundaries
+	-- This keeps the dohyo centered when possible
+	local min_cam_x = -50  -- Left boundary
+	local max_cam_x = 50   -- Right boundary
+	camx = mid(min_cam_x, camx, max_cam_x)
 end
 
 function create_particle(x, y, max_height, width, col, dir)
