@@ -17,12 +17,10 @@ function _init()
 	camx=0
 	camy=0
 	camt=0
-	-- Camera smoothing settings
+	-- camera smoothing settings
 	cam_target_x=0
-	cam_smooth=0.1  -- Lower = smoother (0.1 = 10% movement per frame)
-	cam_left_margin=20   -- How close to left edge wrestlers can get
-	cam_right_margin=108 -- How close to right edge wrestlers can get
-	cam_move_threshold=2  -- Minimum change before camera moves
+	cam_smooth=0.1  -- cower = smoother (0.1 = 10% movement per frame)
+	cam_move_threshold=2  -- minimum change before camera moves
 	
 	cpup2=true
 	p2out_x=163
@@ -53,7 +51,7 @@ function _init()
 	countdown=90
 	
 	-- Initialize difficulty settings
-	difficulty_level = 2 -- 1=easy, 2=normal, 3=hard, 4=expert
+	difficulty_level = 3 -- 1=easy, 2=normal, 3=hard, 4=expert
 	difficulty_scaling = 1.0
 	consecutive_losses = 0
 	
@@ -180,12 +178,12 @@ grab_dash=25
 dash_cool=25
 pummel_cool=10
 --gcount=1000
-gcount=80 --length of grapple
+gcount=100 --length of grapple
 g_cool=25 --grab cooldown
 gdist=45 --grab distance
-max_g_speed=100
+max_g_speed=180
 --% added to prc when pushing
-grapple_push=20
+grapple_push=25
 
 oslap_amt=600
 islap_amt=500
@@ -370,7 +368,7 @@ p1={
 				self.dx=self.dx*(grap_speed/100)
 				if self.gcount<gcount-10 and self.pummel_cool<=0 and (buttonp(5,self.p) or buttonp(4,self.p)) then
 					self.pummel=true 
-					self.gcount-=10
+					self.gcount-=5
 					self.pummel_cool=pummel_cool
 					sfx(rnd({61,63}))
 					other(self.p).prc+=10
@@ -908,8 +906,8 @@ function trifill(x, y, width, height, col)
 end
 
 function draw_bg()
-	left_edge=3-40-12
-	right_edge=124+40+12
+	left_edge=3-40-12+8
+	right_edge=124+40+12-8
 	top_edge=77
 	rectfill(left_edge,top_edge,right_edge,128,4)
 	oval(3-40,80,124+40,115,7)
@@ -1165,14 +1163,10 @@ function update_camera()
 	-- Determine if we need to move the camera
 	local need_camera_move = false
 	
-	-- Check if either wrestler is too close to the screen edges
-	if p1_screen_x < cam_left_margin or 
-	   p1_screen_x > cam_right_margin or
-	   p2_screen_x < cam_left_margin or 
-	   p2_screen_x > cam_right_margin then
-		cam_target_x = center
-		need_camera_move = true
-	end
+
+	cam_target_x = center
+	need_camera_move = true
+
 	
 	-- Only move the camera if necessary
 	if need_camera_move and abs(cam_target_x - camx) > cam_move_threshold then
