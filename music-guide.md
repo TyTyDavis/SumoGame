@@ -59,7 +59,7 @@ _This is a_ Fast _rhythm._
 
 The following **patterns** or **sound effects** are melodic instruments
 
-## pattern 51 + 52
+### pattern 51 + 52
 
 Pattern 51 + 52 is my first whack at the melodic side of things. It's on the slower side and designed to be played over any of our drum rhythms. It's just comprised of sfx 57 and 58 to keep it short. 
 
