@@ -174,13 +174,13 @@ block_stun=25
 slap_stun=5
 hit_stun=6
 dash=50
-grab_dash=25
+grab_dash=15
 dash_cool=25
 pummel_cool=10
 --gcount=1000
 gcount=100 --length of grapple
 g_cool=25 --grab cooldown
-gdist=39 --grab distance
+gdist=41 --grab distance
 max_g_speed=180
 --% added to prc when pushing
 grapple_push=25
@@ -190,7 +190,7 @@ islap_amt=500
 
 block_recover=0.01
 arm_recover=0.02
-hit_recover=0.03
+hit_recover=0.023
 p1={
 	p=0,
 	x = 40, --body center
@@ -517,7 +517,7 @@ p1={
 					if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
 						if not other(self.p).block then
 							sfx(rnd({61,63}))
-							other(self.p).prc_target+=flr(13*(self.oar/-0.19))
+							other(self.p).prc_target+=flr(13*(self.oar/-0.25))
 							self.stun=slap_stun
 							self.oslap="hit recover"
 						else
@@ -544,11 +544,11 @@ p1={
 				
 		if self.islap=="slap" then
 			if self.iar>-0.19 then
-				self.iar-=0.1
+				self.iar-=0.06
 				if arm_hit(self.p, self.iarmhitxy[1],self.iarmhitxy[2]) then
 					if not other(self.p).block then
 						sfx(rnd({61,63}))
-						other(self.p).prc_target+=flr(10*(self.iar/-0.19))
+						other(self.p).prc_target+=flr(10*(self.iar/-0.4))
 						self.stun=slap_stun
 						self.islap="hit recover"
 					else
@@ -589,7 +589,7 @@ p1={
 			elseif self.islap=="block recover" then
 				self.iar+=block_recover
 			elseif self.islap=="hit recover" then
-				self.iar+=hit_recover
+				self.iar+=hit_recover*0.8
 			end
 		end
 		if self.gstate!="grab"
@@ -1670,8 +1670,26 @@ function is_winning(c,a)
 end
 
 function p1_slapping(c,a)
-	if p1.islap=="slap" or p1.oslap=="oslap" then
+	if p1.islap=="slap" or p1.oslap=="slap" then
 		arm_strats[c]+=a
+	end
+end
+
+function p1_close_and_slapping(c,a)
+	if abs(p1.x-p2.x)<60 and (p1.islap=="slap" or p1.oslap=="slap") then
+		arm_strats[c]+=a
+	end
+end
+
+-- Check if player's attack was just blocked - opportunity to counter-attack
+function p1_attack_blocked(c,a)
+	if p1.islap=="block recover" or p1.oslap=="block recover" then
+		arm_strats[c]+=a
+	end
+end
+function p1_attack_blocked_move(c,a)
+	if p1.islap=="block recover" or p1.oslap=="block recover" then
+		movement_strats[c]+=a
 	end
 end
 
@@ -1691,7 +1709,9 @@ arm_conditions={
 	{f=is_slap_range,s="slap",a=50},
 	{f=is_grab_range,s="grab",a=30},
 	{f=is_far_away,s="none",a=80},
-	{f=p1_slapping,s="defend",a=10},
+	{f=p1_slapping,s="defend",a=50},
+	{f=p1_close_and_slapping,s="defend",a=150},
+	{f=p1_attack_blocked,s="slap",a=200}, -- High priority counter-attack after blocking
 	{f=p2_grappling,s="slap", a=1000},
 }
 
@@ -1701,6 +1721,9 @@ movement_conditions={
 	{f=is_far, s="advance", a=100},
 	{f=is_near_edge, s="advance",a=100},
 	{f=is_winning, s="advance", a=100},
+	{f=p1_attack_blocked_move,s="advance",a=200},
+	-- Make CPU advance when slapping to stay in range
+	{f=function(c,a) if cpu.arms=="slap" then movement_strats[c]+=a end end, s="advance",a=150}
 }
 
 cpu_pad={}
@@ -1726,6 +1749,7 @@ function pick_arms_strat()
 		c.f(c.s,c.a)
 	end
 	cpu.astrat_time+=1
+	
 	if cpu.astrat_time%strat_buff==0 then
 		cpu.arms=wrnd(arm_strats)
 	end
@@ -1773,7 +1797,7 @@ function init_cpu_personality()
 	end
 	
 	-- Set reaction delay based on personality
-	cpu.reaction_delay = profile.reaction_time * 5
+	cpu.reaction_delay = profile.reaction_time * 3
 	
 	-- Initialize additional CPU properties
 	cpu.strat_variance = 1 -- Add some randomness to strategy timing
@@ -1875,9 +1899,11 @@ function update_cpu_arms()
 	cpuo=rnd(20)
 	if p2.islap=="ready" or p2.oslap=="ready" then
 		if cpu.arms=="slap" then
-			if p2.islap=="ready" and cpui>=19 then
+			-- More aggressive slapping - immediately slap when strategy is selected
+			-- Alternate between inner and outer slaps to create a barrage
+			if p2.islap=="ready" then
 				cpu_pad[4]=1
-			elseif p2.oslap=="ready" and cpuo>=19 then
+			elseif p2.oslap=="ready" then
 				cpu_pad[5]=1
 			end
 		elseif cpu.arms=="grab" then
