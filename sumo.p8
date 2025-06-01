@@ -180,13 +180,17 @@ pummel_cool=10
 --gcount=1000
 gcount=100 --length of grapple
 g_cool=25 --grab cooldown
-gdist=45 --grab distance
+gdist=39 --grab distance
 max_g_speed=180
 --% added to prc when pushing
 grapple_push=25
 
 oslap_amt=600
 islap_amt=500
+
+block_recover=0.01
+arm_recover=0.02
+hit_recover=0.03
 p1={
 	p=0,
 	x = 40, --body center
@@ -508,23 +512,25 @@ p1={
 			end
 		end
 		if self.oslap=="slap" then
-				if self.oar>-0.19 then
-					self.oar-=0.1
+				if self.oar>-0.18 then
+					self.oar-=0.17
 					if arm_hit(self.p, self.oarmhitxy[1],self.oarmhitxy[2]) then
 						if not other(self.p).block then
 							sfx(rnd({61,63}))
 							other(self.p).prc_target+=flr(13*(self.oar/-0.19))
 							self.stun=slap_stun
+							self.oslap="hit recover"
 						else
 							sfx(59)
 							self.stun=block_stun
 							self.shake+=1
+							self.oslap="block recover"
 						end
 						other(self.p).shake+=abs(self.oar)*5
 						other(self.p).knockback+=(abs(self.oar)*oslap_amt)*(other(self.p).prc/100)
 						other(self.p).stun=hit_stun
 						self.ocount=0
-						self.oslap="not ready"
+					
 					end
 				else
 					self.oslap="not ready"
@@ -544,15 +550,17 @@ p1={
 						sfx(rnd({61,63}))
 						other(self.p).prc_target+=flr(10*(self.iar/-0.19))
 						self.stun=slap_stun
+						self.islap="hit recover"
 					else
 						sfx(59)
 						self.stun=block_stun
 						self.shake+=1
+						self.islap="block recover"
 					end
 					other(self.p).shake+=abs(self.iar)*5
 					other(self.p).knockback+=(abs(self.iar)*islap_amt)*(other(self.p).prc/100)
+					other(self.p).stun=hit_stun
 					self.icount=0
-					self.islap="not ready"
 				end
 			else
 				self.islap="not ready"
@@ -567,25 +575,38 @@ p1={
 	end,
 	
 	lower_arms=function(self)
-		if (not button(4,self.p) 
-		or self.islap=="not ready"
-		or self.gstate=="not ready")
-		and self.gstate!="grab" 
+		
+		if self.gstate!="grab" 
 		and self.gstate!="grapple"
 		and self.gstate!="grappled"
 		and self.iar<0 
-	 then
-			self.iar+=0.02
+	 	then
+			--if (not button(4,self.p)
+			if self.islap=="not ready"
+			or self.gstate=="not ready"
+			then
+				self.iar+=arm_recover
+			elseif self.islap=="block recover" then
+				self.iar+=block_recover
+			elseif self.islap=="hit recover" then
+				self.iar+=hit_recover
+			end
 		end
-		if (not button(5,self.p) 
-		or self.oslap=="not ready" 
-		or self.gstate=="not ready") 
-		and self.gstate!="grab"
+		if self.gstate!="grab"
 		and self.gstate!="grapple"
 		and self.gstate!="grappled"
 		and self.oar<0 
 		then
-			self.oar+=0.02
+			--if (not button(5,self.p) 
+			if self.oslap=="not ready" 
+			or self.gstate=="not ready"
+			then
+				self.oar+=arm_recover
+			elseif self.oslap=="block recover" then
+				self.oar+=block_recover
+			elseif self.oslap=="hit recover" then
+				self.oar+=hit_recover
+			end
 		end
 	end,
 	
