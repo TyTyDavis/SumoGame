@@ -17,7 +17,7 @@ The following **sound effects** are drums
 
 50 is the "base" of all of the music. It's a steady low taiko drum _don_ rhythm. Like a heartbeat or a steady walk. This can be used as the base and always playing. (The more it's played the stronger the suspense/jarring effect would be if you turned it off during a pivital moment.)
 
-_This is a_ Slow  _rhythm._
+_This is a_ Medium  _rhythm._
 
 ### sfx 51
 
@@ -61,6 +61,24 @@ The following **patterns** or **sound effects** are melodic instruments
 
 ### pattern 51 + 52
 
-Pattern 51 + 52 is my first whack at the melodic side of things. It's on the slower side and designed to be played over any of our drum rhythms. It's just comprised of sfx 57 and 58 to keep it short. 
+Pattern 51 + 52 is a loop. The first channel is the base rhythm, sfx 50. The second channel is the accent beats, sfx 51. Third channel is even more drum accents to make it busier, sfx 52. And the fourth channel is the melody. 
 
-_Note: I curently included drum rhythms 50 and 51 to give you an idea how the pieces can fit together. In the actual game we would turn off the drum tracks from the pattern so you have more control over what's playing at any given time._
+### pattern 53 + 54
+
+Pattern 53 + 54 is a loop. It features the same base and accents on the first and second channels. The third channel has the same melody as 51 + 52, but the fourth channel is a counter melody to make it more intersting. Use this pattern if you want more melody than drums to be present.
+
+### pattern 55
+
+Pattern 55 is just drums, no melody. It features a departure from the base pattern for when you want more busy/frantic drum moments. The first channel is the base of this pattern. The second is accents. The third is more busy accents. And the fourth is even more busy accents. 
+
+### sfx 47
+
+This is a counter melody to the main melody featured in Pattern 51 + 25
+
+_This is a_ Medium _rhythm._
+
+### sfx 47
+
+This is a high flute trill. Similar in effect to the drumrolls in sfx 55 and 56. Use to build tension. 
+
+_This is a_ Fast _rhythm._
