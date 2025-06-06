@@ -4,7 +4,6 @@ __lua__
 --oshidashi! sumo
 --by tyler r. davis
 
-
 function _init()
 	palt(0,false)
 	palt(11,true)
@@ -213,9 +212,9 @@ grab_dash=15
 dash_cool=25
 pummel_cool=10
 --gcount=1000
-gcount=150 --length of grapple
+gcount=160 --length of grapple
 g_cool=25 --grab cooldown
-gdist=41 --grab distance
+gdist=43 --grab distance
 max_g_speed=200 
 grapple_push=50 --% added to prc when pushing
 
@@ -225,6 +224,11 @@ islap_amt=500
 block_recover=0.01
 arm_recover=0.02
 hit_recover=0.023
+
+-- slap cooldown settings
+max_slaps_before_cooldown = 6 -- max slaps before cooldown
+slap_window_frames = 60 -- frames to count slaps within
+slap_cooldown_frames = 20 -- cooldown duration in frames
 p1={
 	p=0,
 	x = 40, --body center
@@ -266,6 +270,9 @@ p1={
 	icount=0,
 	islap="ready",
 	oslap="ready",
+	slap_timestamps = {}, -- stores timestamps of recent slaps
+	slap_cooldown = 0, -- cooldown timer
+	in_slap_cooldown = false, -- whether player is in cooldown
 	iag=false,
 	oag=false,
 	grapple=false,
@@ -527,23 +534,63 @@ p1={
 	end,
 	
 	handle_slaps=function(self)
+		-- Update slap cooldown if active
+		if self.slap_cooldown > 0 then
+			if self.iar<0 then self.islap="hit recover" end
+			if self.oar<0 then self.oslap="hit recover" end
+			self.slap_cooldown -= 1
+			if self.slap_cooldown <= 0 then
+				self.in_slap_cooldown = false
+				-- Clear slap history when cooldown ends
+				self.slap_timestamps = {}
+			end
+		end
+		
+		-- Check if player is in cooldown
+		if self.in_slap_cooldown then
+			-- Can't slap during cooldown
+			return
+		end
+		
+		-- Remove old slap timestamps
+		local current_time = time()
+		local window_time = slap_window_frames / 30 -- convert frames to seconds
+		for i = #self.slap_timestamps, 1, -1 do
+			if current_time - self.slap_timestamps[i] > window_time then
+				deli(self.slap_timestamps, i)
+			end
+		end
+		
+		-- Check if player has tried to slap
+		local tried_to_slap = false
+		
 		if self.canact then
 			if buttonp(4,self.p) 
 			and self.gstate=="ready" then
 				self.icount+=1
 				if self.islap=="ready" then
 					self.islap="slap"
+					add(self.slap_timestamps, time())
+					tried_to_slap = true
 				end
 			end
 		end
+		
 		if self.canact then
 			if buttonp(5,self.p)
 			and self.gstate=="ready" then
 				self.ocount+=1
 				if self.oslap=="ready" then
 					self.oslap="slap"
+					add(self.slap_timestamps, time())
+					tried_to_slap = true
 				end
 			end
+		end
+		
+		if tried_to_slap and #self.slap_timestamps >= max_slaps_before_cooldown then
+			self.in_slap_cooldown = true
+			self.slap_cooldown = slap_cooldown_frames
 		end
 		if self.oslap=="slap" then
 				if self.oar>-0.18 then
@@ -763,6 +810,9 @@ p1={
 		self.gstate="ready"
 		self.islap="ready"
 		self.oslap="ready"
+		self.slap_timestamps={}
+		self.slap_cooldown=0
+		self.in_slap_cooldown=false
 	end
 }
 
@@ -1424,7 +1474,7 @@ function draw_main_menu()
 	pd_rotate(x+8,y+23,menu_arm_r,33,12,6.5,false,3)
 	
 	
-	local logox,logoy = camx+50, 3
+	local logox,logoy = camx+48, 3
 	print("\^w\^tおしネきし", logox+1, logoy, 7)
 	print("\^woshidashi!", logox+1, logoy+12,7)
 	print("\^w\^tすも", logox+23, logoy+19, 7)
